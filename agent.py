@@ -36,6 +36,11 @@ agent = Agent(
 )
 chat_protocol = Protocol(spec=chat_protocol_spec)
 
+print(f"\n[Vison Forge Agent]")
+print(f"Address: {agent.address}")
+print(f"Agentverse Inspector: https://agentverse.ai/agents/{agent.address}")
+print(f"Waiting for incoming ACP / ASI:One messages on port {os.getenv('VISON_AGENT_PORT', '8001')}...\n")
+
 
 def response_message(text: str) -> ChatMessage:
     return ChatMessage(
