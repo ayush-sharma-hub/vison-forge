@@ -94,14 +94,30 @@ def _project_kind(idea: str) -> str:
 
 def _components_for(request: ForgeRequest, kind: str) -> tuple[Component, ...]:
     platform = _normalise(request.platform)
-    controller_name = "ESP32 development board" if platform == "esp32" else "Arduino Uno-compatible board"
-    controller_docs = "https://docs.espressif.com/projects/esp-idf/en/latest/esp32/" if platform == "esp32" else "https://docs.arduino.cc/hardware/uno-rev3/"
+
+    if platform == "esp32":
+        controller_name = "ESP32 development board"
+        controller_voltage = "3.3V logic"
+        controller_docs = "https://docs.espressif.com/projects/esp-idf/en/latest/esp32/"
+        usb_cable = "Micro USB / USB-C data cable"
+    elif platform == "raspberry pi":
+        controller_name = "Raspberry Pi 4 Model B (2GB)"
+        controller_voltage = "5V via USB-C"
+        controller_docs = "https://www.raspberrypi.com/documentation/"
+        usb_cable = "USB-C power cable and micro-SD card (16GB+)"
+    else:  # arduino and robotics
+        controller_name = "Arduino Uno-compatible board"
+        controller_voltage = "5V logic"
+        controller_docs = "https://docs.arduino.cc/hardware/uno-rev3/"
+        usb_cable = "USB-B data cable"
+
     base = [
-        Component(controller_name, 1, "Main controller", "3.3V logic" if platform == "esp32" else "5V logic", controller_docs),
+        Component(controller_name, 1, "Main controller", controller_voltage, controller_docs),
         Component("Breadboard", 1, "Safe temporary prototyping"),
         Component("Jumper wires", 1, "Low-voltage prototype connections"),
-        Component("USB data cable", 1, "Programming and initial power"),
+        Component(usb_cable, 1, "Programming and initial power"),
     ]
+
     if kind == "plant-monitor":
         base.extend((
             Component("Capacitive soil-moisture sensor", 2, "Measure soil moisture", "3.3V–5V"),
@@ -194,7 +210,16 @@ def create_plan(
     kind = _project_kind(request.idea)
     difficulty, hours = _difficulty(request, kind)
     components = _components_for(request, kind)
-    controller_pin = "GPIO 34" if platform == "esp32" else "A0"
+
+    if platform == "esp32":
+        controller_pin = "GPIO 34"
+        compat_note = "ESP32 GPIO pins operate at 3.3V logic — never connect 5V signals directly to GPIO pins."
+    elif platform == "raspberry pi":
+        controller_pin = "GPIO 17 (BCM numbering)"
+        compat_note = "Raspberry Pi GPIO pins operate at 3.3V. Use a level-shifter for any 5V sensor signals."
+    else:
+        controller_pin = "A0"
+        compat_note = "Arduino Uno GPIO pins operate at 5V logic — confirm sensor compatibility before wiring."
     if kind == "plant-monitor":
         wiring = (
             f"Connect soil-sensor output to {controller_pin}; connect sensor power according to its datasheet.",
@@ -307,7 +332,11 @@ def create_plan(
         summary=f"A scoped {request.platform} {kind.replace('-', ' ')} project for a {request.experience} builder.",
         safety_notes=safety or ("Use only low-voltage hobby electronics and follow every component datasheet.",),
         difficulty=difficulty, estimated_hours=hours, components=components,
-        compatibility_notes=("Controller pins must not power motors, pumps, or other high-current loads.", "Confirm the exact sensor's voltage and logic level before wiring."),
+        compatibility_notes=(
+            "Controller pins must not power motors, pumps, or other high-current loads.",
+            compat_note,
+            "Confirm the exact sensor's voltage and logic level before wiring.",
+        ),
         wiring=wiring, build_steps=build_steps, tests=tests, risks=risks,
         timeline=_timeline(request, hours), team_tasks=_team_tasks(request), submission_checklist=checklist,
         research_status=research_status,
