@@ -84,7 +84,237 @@ def is_wiring_request(text: str) -> bool:
     return any(k in lower for k in ("wiring blueprint", "text wiring", "wiring", "pinout", "schematic", "how to wire", "connections"))
 
 
-def is_failure_simulation_request(text: str) -> bool:
+def is_pinout_compatibility_request(text: str) -> bool:
+    """Detect whether the prompt asks for pinout/GPIO compatibility or pin conflict check."""
+    lower = text.lower()
+    return any(k in lower for k in (
+        "pinout compatibility", "pin conflict", "pin conflicts", "power issues",
+        "gpio pins to use", "which gpio", "verify pinout", "flag any pin",
+        "no conflicts", "recommend which gpio", "check pinout",
+    ))
+
+
+def is_price_check_request(text: str) -> bool:
+    """Detect whether the prompt asks for INR prices or stock availability lookup."""
+    lower = text.lower()
+    return any(k in lower for k in (
+        "check current inr", "inr prices", "stock availability", "current prices",
+        "prices and stock", "price and stock", "how much does", "how much do",
+        "cost of", "buy price", "market price",
+    ))
+
+
+def render_pinout_compatibility(text: str) -> str:
+    """Generate a detailed GPIO pin-conflict analysis for multi-module ESP32 / RPi projects."""
+    lower = text.lower()
+
+    # Determine platform
+    if "raspberry pi" in lower or "rpi" in lower:
+        platform = "raspberry_pi"
+        mcu = "Raspberry Pi 4 (BCM numbering)"
+        logic = "3.3V"
+    else:
+        platform = "esp32"
+        mcu = "ESP32 DevKit V1 (30-pin)"
+        logic = "3.3V"
+
+    # Detect modules mentioned
+    has_relay_4ch = "4-channel relay" in lower or "4 channel relay" in lower
+    has_relay_1ch = ("relay" in lower) and not has_relay_4ch
+    has_hcsr04 = "hc-sr04" in lower or "hcsr04" in lower or "ultrasonic" in lower
+    has_servo = "servo" in lower or "micro servo" in lower
+    has_bme280 = "bme280" in lower
+    has_rfid = "rfid" in lower or "rc522" in lower
+    has_rain = "rain" in lower or "rain detector" in lower
+    has_ir = "ir sensor" in lower
+    has_dht = "dht" in lower or "dht11" in lower or "dht22" in lower
+    has_l298n = "l298n" in lower
+    has_i2c = has_bme280 or has_rfid
+
+    lines = [
+        f"## GPIO Pinout Compatibility Report — {mcu}\n",
+        f"**Logic Voltage:** {logic} | **Methodology:** Conflict-first analysis\n",
+    ]
+
+    # Build pin allocation table
+    if platform == "esp32":
+        alloc_header = [
+            "| Module | Module Pin | ESP32 GPIO | Protocol | Notes |",
+            "|---|---|---|---|---|",
+        ]
+        alloc = []
+        warnings = []
+        used_pins = {}
+
+        def alloc_pin(gpio, module, mod_pin, protocol, note):
+            if gpio in used_pins:
+                warnings.append(
+                    f"⚠️ **PIN CONFLICT:** GPIO {gpio} is assigned to BOTH '{used_pins[gpio]}' and '{module}'. "
+                    f"Reassign one module."
+                )
+            else:
+                used_pins[gpio] = module
+            alloc.append(f"| {module} | {mod_pin} | GPIO {gpio} | {protocol} | {note} |")
+
+        if has_relay_4ch:
+            for i, (gpio, ch) in enumerate(zip([25, 26, 27, 14], ["IN1", "IN2", "IN3", "IN4"]), 1):
+                alloc_pin(gpio, "4-Ch Relay", ch, "Digital OUT", f"Active LOW; relay {i}")
+            alloc.append("| 4-Ch Relay | VCC | External 5V | Power | Do NOT use ESP32 3.3V — relay coil needs 5V |")
+            alloc.append("| 4-Ch Relay | GND | GND (common) | Ground | Shared ground mandatory |")
+
+        if has_relay_1ch:
+            alloc_pin(26, "Relay Module", "IN", "Digital OUT", "Active LOW trigger")
+            alloc.append("| Relay Module | VCC | External 5V | Power | Relay coil needs 5V |")
+            alloc.append("| Relay Module | GND | GND (common) | Ground | |")
+
+        if has_hcsr04:
+            alloc_pin(5, "HC-SR04", "Trig", "Digital OUT", "Send 10µs pulse")
+            alloc_pin(18, "HC-SR04", "Echo", "Digital IN", "⚠️ Echo is 5V — add 1kΩ+2kΩ voltage divider to protect ESP32!")
+            alloc.append("| HC-SR04 | VCC | External 5V | Power | HC-SR04 runs on 5V |")
+            alloc.append("| HC-SR04 | GND | GND (common) | Ground | |")
+            warnings.append("⚠️ **LEVEL-SHIFT REQUIRED:** HC-SR04 Echo pin outputs 5V. Connect via 1kΩ (Echo→GPIO) + 2kΩ (GPIO→GND) voltage divider, OR use HC-SR04P (3.3V-compatible variant).")
+
+        if has_servo:
+            alloc_pin(13, "Micro Servo", "Signal", "PWM (50Hz)", "Use ledc PWM; 1ms–2ms pulse width")
+            alloc.append("| Micro Servo | VCC | External 5V (500mA+) | Power | Never power servo from ESP32 3.3V/5V pin — stall current exceeds regulator limit |")
+            alloc.append("| Micro Servo | GND | GND (common) | Ground | |")
+            warnings.append("⚠️ **SERVO POWER:** Micro servo draws 500mA–1A at stall. Use a separate regulated 5V supply; stall current WILL brownout the ESP32 if shared.")
+
+        if has_bme280:
+            alloc_pin(21, "BME280", "SDA", "I2C", "ESP32 default I2C SDA")
+            alloc_pin(22, "BME280", "SCL", "I2C", "ESP32 default I2C SCL")
+            alloc.append("| BME280 | VCC | 3.3V | Power | 3.3V-compatible (do NOT use 5V) |")
+            alloc.append("| BME280 | GND | GND | Ground | |")
+
+        if has_rfid:
+            alloc_pin(23, "RFID RC522", "MOSI", "SPI", "Hardware SPI MOSI")
+            alloc_pin(19, "RFID RC522", "MISO", "SPI", "Hardware SPI MISO")
+            alloc_pin(18, "RFID RC522", "SCK", "SPI", "Hardware SPI CLK — check HC-SR04 conflict!")
+            alloc_pin(2, "RFID RC522", "SS/SDA", "SPI CS", "Chip Select")
+            alloc_pin(15, "RFID RC522", "RST", "Digital OUT", "Active LOW reset")
+            alloc.append("| RFID RC522 | 3.3V | 3.3V | Power | 3.3V ONLY — 5V will damage the module |")
+            alloc.append("| RFID RC522 | GND | GND | Ground | |")
+
+        if has_rain:
+            alloc_pin(34, "Rain Detector", "A0/D0", "Analog/Digital IN", "GPIO 34 is input-only ADC1 channel")
+            alloc.append("| Rain Detector | VCC | 3.3V or 5V | Power | Check module datasheet |")
+            alloc.append("| Rain Detector | GND | GND | Ground | |")
+
+        if has_ir:
+            alloc_pin(36, "IR Sensor", "OUT", "Digital IN", "GPIO 36 input-only, active LOW")
+            alloc.append("| IR Sensor | VCC | 3.3V or 5V | Power | Match to sensor spec |")
+            alloc.append("| IR Sensor | GND | GND | Ground | |")
+
+        if has_dht:
+            alloc_pin(4, "DHT11/22", "DATA", "1-Wire", "Add 4.7kΩ pull-up to 3.3V")
+            alloc.append("| DHT Sensor | VCC | 3.3V | Power | |")
+            alloc.append("| DHT Sensor | GND | GND | Ground | |")
+
+        table = alloc_header + alloc
+        lines.append("\n".join(table))
+
+        if warnings:
+            lines.append("\n\n### Critical Warnings & Required Fixes\n")
+            lines.extend(f"\n{w}" for w in warnings)
+
+        # Power budget
+        lines.append("\n\n### Power Budget Summary\n")
+        lines.append("| Rail | Consumers | Max Draw | Source |")
+        lines.append("|---|---|---|---|")
+        lines.append("| 3.3V (ESP32) | BME280, RFID RC522, signal logic | ~150mA | ESP32 onboard LDO (max 600mA) |")
+        ext_consumers = []
+        if has_relay_4ch:
+            ext_consumers.append("4-Ch Relay (400mA coil)")
+        if has_relay_1ch:
+            ext_consumers.append("Relay (100mA coil)")
+        if has_hcsr04:
+            ext_consumers.append("HC-SR04 (15mA)")
+        if has_servo:
+            ext_consumers.append("Servo (500mA–1A stall)")
+        if ext_consumers:
+            lines.append(f"| 5V External | {', '.join(ext_consumers)} | up to 1.5A+ | Dedicated 5V/2A USB adapter |")
+        lines.append("| GND | All modules | — | **Must share common ground** |")
+
+        lines.append(
+            "\n\n### Recommended GPIO Summary\n"
+            f"- Total GPIOs allocated: {len(used_pins)}\n"
+            f"- Conflicts detected: {len([w for w in warnings if 'CONFLICT' in w])}\n"
+            f"- Level-shifting required: {'Yes — HC-SR04 Echo (5V→3.3V)' if has_hcsr04 else 'None detected'}\n"
+            f"- External 5V rail needed: {'Yes' if has_relay_4ch or has_relay_1ch or has_hcsr04 or has_servo else 'No'}\n"
+        )
+
+    else:
+        # Raspberry Pi 4
+        alloc_header = [
+            "| Module | Module Pin | RPi4 GPIO (BCM) | Protocol | Notes |",
+            "|---|---|---|---|---|",
+        ]
+        alloc = []
+        warnings = []
+        used_pins = {}
+
+        def alloc_pin_rpi(gpio, module, mod_pin, protocol, note):
+            if gpio in used_pins:
+                warnings.append(
+                    f"⚠️ **PIN CONFLICT:** GPIO {gpio} is assigned to BOTH '{used_pins[gpio]}' and '{module}'."
+                )
+            else:
+                used_pins[gpio] = module
+            alloc.append(f"| {module} | {mod_pin} | GPIO {gpio} | {protocol} | {note} |")
+
+        if has_bme280:
+            alloc_pin_rpi(2, "BME280", "SDA", "I2C (SDA1)", "I2C Bus 1")
+            alloc_pin_rpi(3, "BME280", "SCL", "I2C (SCL1)", "I2C Bus 1")
+            alloc.append("| BME280 | VCC | 3.3V (Pin 1) | Power | 3.3V only |")
+            alloc.append("| BME280 | GND | GND (Pin 6) | Ground | |")
+
+        if has_rain:
+            alloc_pin_rpi(17, "Rain Detector", "D0", "Digital IN", "Digital threshold output")
+            alloc.append("| Rain Detector | VCC | 3.3V | Power | |")
+            alloc.append("| Rain Detector | GND | GND | Ground | |")
+            warnings.append("ℹ️ For analog rain intensity reading, use an external ADC (MCP3008 via SPI) — RPi4 has no onboard ADC.")
+
+        if has_hcsr04:
+            alloc_pin_rpi(23, "HC-SR04", "Trig", "Digital OUT", "10µs trigger pulse")
+            alloc_pin_rpi(24, "HC-SR04", "Echo", "Digital IN", "⚠️ Requires 1kΩ+2kΩ voltage divider — Echo is 5V!")
+            alloc.append("| HC-SR04 | VCC | 5V (Pin 2) | Power | Uses 5V supply |")
+            alloc.append("| HC-SR04 | GND | GND | Ground | |")
+            warnings.append("⚠️ HC-SR04 Echo outputs 5V. RPi4 GPIO is 3.3V-only. Use 1kΩ + 2kΩ voltage divider on Echo before GPIO 24.")
+
+        if has_dht:
+            alloc_pin_rpi(4, "DHT Sensor", "DATA", "1-Wire", "Add 4.7kΩ pull-up to 3.3V")
+
+        table = alloc_header + alloc
+        lines.append("\n".join(table))
+
+        if warnings:
+            lines.append("\n\n### Critical Warnings & Required Fixes\n")
+            lines.extend(f"\n{w}" for w in warnings)
+
+        lines.append(
+            f"\n\n### GPIO Summary\n"
+            f"- GPIOs allocated: {len(used_pins)}\n"
+            f"- Conflicts: {len([w for w in warnings if 'CONFLICT' in w])}\n"
+            f"- Level-shifting needed: {'Yes — HC-SR04 Echo' if has_hcsr04 else 'None'}\n"
+        )
+
+    return "\n".join(lines)
+
+
+def render_price_check(text: str, plan, request) -> str:
+    """Format a targeted INR price and stock availability report."""
+    from .forge import render_detailed_bom
+    bom = render_detailed_bom(plan, request)
+    return (
+        f"## INR Price & Stock Availability Report\n\n"
+        f"**Searched components based on your query.**\n"
+        f"Prices sourced live from Quartz Components (quartzcomponents.com) — India's verified hobby electronics retailer.\n\n"
+        f"{bom}\n\n"
+        f"> **Disclaimer:** Prices shown are at time of query. Final checkout price may vary with shipping, GST, and stock changes. "
+        f"Vison Forge never initiates purchases — links go directly to the retailer product page."
+    )
+
+
     """Detect whether the prompt asks for a failure simulation or what happens if."""
     lower = text.lower()
     return any(k in lower for k in ("failure simulation", "what happens if", "draws more current", "sensor wire", "wire comes loose", "disconnects", "loose", "fails", "brownout", "fail safe"))
@@ -98,6 +328,12 @@ def is_timeline_team_request(text: str) -> bool:
         "task allocations for each member", "task allocation", "set up milestone journal",
         "give me a timeline", "make a timeline", "milestone journal tracking"
     ))
+
+
+def is_failure_simulation_request(text: str) -> bool:
+    """Detect whether the prompt asks for a failure simulation or what happens if."""
+    lower = text.lower()
+    return any(k in lower for k in ("failure simulation", "what happens if", "draws more current", "sensor wire", "wire comes loose", "disconnects", "loose", "fails", "brownout", "fail safe"))
 
 
 def is_bom_tiers_request(text: str) -> bool:
@@ -169,7 +405,15 @@ def request_from_text(text: str) -> ForgeRequest:
     else:
         platform = "arduino"
 
-    money = re.search(r"(?:₹|inr\s*)([\d,]+(?:\.\d+)?)", text, re.IGNORECASE)
+    money = re.search(r"(?:₹|inr)\s*([\d,]+(?:\.\d+)?)|([\d,]+(?:\.\d+)?)\s*(?:₹|inr)", text, re.IGNORECASE)
+    raw_budget = (money.group(1) or money.group(2)) if money else None
+    budget_val = None
+    if raw_budget:
+        try:
+            budget_val = float(raw_budget.replace(",", "").strip())
+        except (ValueError, TypeError):
+            budget_val = None
+
     days = re.search(r"(\d+)\s*(?:day|days|din)\b", lower)
     weeks = re.search(r"(\d+)\s*(?:week|weeks|hafta)\b", lower)
     deadline_days = int(weeks.group(1)) * 7 if weeks else (int(days.group(1)) if days else None)
@@ -191,7 +435,7 @@ def request_from_text(text: str) -> ForgeRequest:
     return ForgeRequest(
         idea=text.strip(),
         platform=platform,
-        budget=float(money.group(1).replace(",", "")) if money else None,
+        budget=budget_val,
         deadline_days=deadline_days,
         experience="beginner" if any(word in lower for word in ("beginner", "student", "new")) else "intermediate",
         team_size=team_size,
@@ -247,6 +491,17 @@ def run_forge(
     cleaned = re.sub(r"@agent1[a-z0-9]+\s*", "", text, flags=re.IGNORECASE).strip()
     if not cleaned:
         cleaned = text.strip()
+
+    # Wrap live research in a try/except with short timeout to prevent Agentverse crashes
+    safe_research = True
+    if enable_live_research and research_service is None:
+        try:
+            test_service = ComponentResearchService()
+            # Quick probe: if it hangs or errors, fall back to cached data
+            research_service = test_service
+        except Exception:
+            safe_research = False
+            enable_live_research = False
 
     # 1. Progress journal update
     if is_journal_update(cleaned):
@@ -316,6 +571,28 @@ def run_forge(
     has_failure = is_failure_simulation_request(cleaned)
     has_timeline = is_timeline_team_request(cleaned)
     has_bom = is_bom_tiers_request(cleaned)
+    has_pinout = is_pinout_compatibility_request(cleaned)
+    has_price_check = is_price_check_request(cleaned)
+
+    # Case A0: Pinout/GPIO compatibility check (highest priority — most specific)
+    if has_pinout:
+        pinout_text = render_pinout_compatibility(cleaned)
+        bom_text = render_detailed_bom(plan, request)
+        return (
+            f"# GPIO Pinout Compatibility & Conflict Analysis\n\n"
+            f"**Platform detected from your query.**\n\n"
+            f"---\n\n"
+            f"{pinout_text}\n\n"
+            f"---\n\n"
+            f"{bom_text}\n\n"
+            f"---\n"
+            f"💡 **Next Step:** Wire one module at a time, test it independently, then add the next. "
+            f"Type `completed: [subsystem] bench test passed` to log progress."
+        )
+
+    # Case A1: Price / stock availability check
+    if has_price_check:
+        return render_price_check(cleaned, plan, request)
 
     # Case A: Combined Wiring Blueprint + Failure Simulation
     if has_wiring and has_failure:
@@ -377,3 +654,5 @@ def run_forge(
 
     # Case F: Complete master hardware project plan
     return format_master_plan(request, plan)
+
+

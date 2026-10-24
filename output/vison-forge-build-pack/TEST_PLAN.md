@@ -1,10 +1,9 @@
 # Test Plan
 
-- Dry-sensor test: confirm the measured value changes when the sensor moves from dry air to water-free damp soil.
-- Pump test: with water disconnected, trigger the relay for two seconds and confirm the controller remains powered.
-- Fail-safe test: disconnect the sensor and confirm the pump does not run continuously.
+- Log ten sensor readings and check for plausible change.
+- Disconnect the sensor and ensure the software reports a safe error state.
 
 ## Risks
 
-- Sensor readings drift; calibrate with dry and damp soil.
-- Pump current can reset the controller; use separate low-voltage pump power.
+- The requested sensor is unspecified.
+- Compatibility cannot be confirmed until the exact sensor model is selected.

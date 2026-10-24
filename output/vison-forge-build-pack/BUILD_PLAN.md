@@ -8,7 +8,5 @@
 
 ## Wiring Blueprint
 
-- Connect soil-sensor output to GPIO 34; connect sensor power according to its datasheet.
-- Connect the relay input to a free digital pin; relay VCC/GND must match its module documentation.
-- Power the 5V pump from its separate 5V supply through the relay contacts; do not draw pump current from a controller pin.
-- Keep all electronics dry and test the circuit before placing tubing near it.
+- Start with one sensor and the controller only.
+- Confirm sensor supply and signal voltage from official documentation before wiring.

@@ -1,5 +1,5 @@
 {
-  "idea": "I want an ESP32 plant watering system for two plants, under \u20b92500, in 7 days, for a beginner team of 2.",
+  "idea": "I want to build a motorized DIY Iron Man helmet with dual micro servos for opening the faceplate and LED eye glow using an Arduino Nano, under \u20b92500, in 10 days, for a beginner.",
   "completed": [],
   "next_action": "Read the linked controller documentation and confirm the board pin labels."
 }

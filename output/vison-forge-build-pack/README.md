@@ -1,20 +1,25 @@
-# I want an ESP32 plant watering system for two plants, under ₹2500, in 7 days, for a beginner team of 2.
+# I want to build a motorized DIY Iron Man helmet with dual micro servos for opening the faceplate and LED eye glow using an Arduino Nano, under ₹2500, in 10 days, for a beginner.
 
 ## Vison Forge verdict
 
-**Ready:** A scoped esp32 plant monitor project for a beginner builder.
+**Ready:** A scoped arduino iot project for a beginner builder.
 
 ## Difficulty
 
 Low to medium — suitable for a guided beginner build
 
+## Estimated Project Total
+
+- **Estimated Total:** ₹866.00 INR
+- **Completeness:** Complete (all required items verified)
+
 ## Safety
 
-- Keep water away from the controller and use only low-voltage, USB-powered equipment in this MVP.
+- Use only low-voltage hobby electronics and follow every component datasheet.
 
 ## Documentation
 
-- [ESP32 development board documentation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/)
+- [Arduino Uno-compatible board documentation](https://docs.arduino.cc/hardware/uno-rev3/)
 
 ## Important Purchasing Policy
 

@@ -89,6 +89,12 @@ def _project_kind(idea: str) -> str:
         return "plant-monitor"
     if _contains_any(lower, ("line follower", "obstacle", "robot", "rover")):
         return "robot"
+    if _contains_any(lower, ("door lock", "smart lock", "smart door", "rfid", "solenoid", "access control")):
+        return "smart-lock"
+    if _contains_any(lower, ("weather", "weather station", "bme280", "rain")):
+        return "weather-station"
+    if _contains_any(lower, ("home automation", "smart home")):
+        return "home-automation"
     return "iot"
 
 
@@ -133,6 +139,26 @@ def _components_for(request: ForgeRequest, kind: str) -> tuple[Component, ...]:
             Component("Line sensors or ultrasonic sensor", 1, "Project input sensor", "3.3V–5V"),
             Component("AA battery holder or certified USB power bank", 1, "Low-risk portable power option"),
         ))
+    elif kind == "smart-lock":
+        base.extend((
+            Component("RFID-RC522 reader module", 1, "Read RFID/NFC access cards", "3.3V"),
+            Component("12V solenoid lock (door latch)", 1, "Electric door latch actuator", "12V DC — use relay isolation, never from MCU"),
+            Component("5V relay module with 3.3V-compatible input", 1, "Safely switch 12V solenoid from 3.3V MCU signal", "5V coil"),
+            Component("12V DC power adapter (1a+)", 1, "Power for solenoid — isolated from MCU rail", "12V"),
+            Component("LED indicators (green + red)", 2, "Access granted / denied feedback", "3.3V via 220Ω resistor"),
+        ))
+    elif kind == "weather-station":
+        base.extend((
+            Component("BME280 temperature/humidity/pressure sensor", 1, "Environmental sensing", "3.3V I2C"),
+            Component("Rain detector module", 1, "Detect precipitation", "3.3V–5V digital output"),
+            Component("0.96 inch I2C OLED Display Module", 1, "Local data display", "3.3V"),
+        ))
+    elif kind == "home-automation":
+        base.extend((
+            Component("4-channel relay module with optocoupler", 1, "Switch AC/DC loads safely", "5V coil, 3.3V-compatible input"),
+            Component("DHT22 digital temperature and humidity sensor", 1, "Environmental monitoring", "3.3V–5V"),
+            Component("HC-SR501 PIR motion sensor module", 1, "Occupancy detection for automation", "5V"),
+        ))
     else:
         base.append(Component("Sensor matched to the project goal", 1, "Collect the main project input", "Confirm from datasheet"))
 
@@ -149,7 +175,7 @@ def _safety_notes(request: ForgeRequest) -> tuple[str, ...]:
 
 
 def _difficulty(request: ForgeRequest, kind: str) -> tuple[str, int]:
-    hours = {"plant-monitor": 10, "robot": 14, "iot": 8}[kind]
+    hours = {"plant-monitor": 10, "robot": 14, "iot": 8, "smart-lock": 12, "weather-station": 8, "home-automation": 12}.get(kind, 8)
     if request.experience.lower() not in {"beginner", "student"}:
         hours = max(5, hours - 2)
     if request.deadline_days and request.deadline_days < 3:

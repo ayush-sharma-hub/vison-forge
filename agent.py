@@ -2,6 +2,20 @@
 
 from __future__ import annotations
 
+import sys
+import io
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import truststore
 truststore.inject_into_ssl()
 
@@ -101,7 +115,8 @@ async def handle_chat(ctx: Context, sender: str, message: ChatMessage) -> None:
                 "*I want an ESP32 plant watering system for two plants, under ₹2500, in 7 days, for a beginner team of 2.*"
             )
         else:
-            ctx.logger.info(f"Processing Vison Forge request from {sender}: {user_text[:80]}")
+            clean_log_text = user_text[:80].encode("ascii", errors="backslashreplace").decode("ascii")
+            ctx.logger.info(f"Processing Vison Forge request from {sender}: {clean_log_text}")
             loop = asyncio.get_event_loop()
             reply = await loop.run_in_executor(_executor, _run_forge_sync, user_text, sender)
 

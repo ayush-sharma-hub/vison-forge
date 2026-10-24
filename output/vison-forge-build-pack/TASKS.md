@@ -3,7 +3,6 @@
 ## Team tasks
 
 - Hardware: verify components, assemble only the low-voltage circuit, and photograph each stage.
-- Firmware: implement and test one subsystem at a time.
 
 ## Timeline
 
@@ -13,4 +12,4 @@
 - Day 4 (27 Oct): Implement core behaviour.
 - Day 5 (28 Oct): Calibrate and test failures.
 - Day 6 (29 Oct): Record demo and complete documentation.
-- Reserve the final day for recovery and submission; estimated hands-on work: about 10 hours.
+- Reserve the final day for recovery and submission; estimated hands-on work: about 8 hours.
