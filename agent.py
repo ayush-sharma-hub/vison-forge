@@ -39,7 +39,7 @@ agent = Agent(
 )
 chat_protocol = Protocol(spec=chat_protocol_spec)
 
-_executor = ThreadPoolExecutor(max_workers=4)
+_executor = ThreadPoolExecutor(max_workers=8)
 
 print(f"\n[Vison Forge Agent]")
 print(f"Address: {agent.address}")
@@ -76,32 +76,42 @@ def _run_forge_sync(user_text: str, session_id: str) -> str:
 
 @chat_protocol.on_message(ChatMessage)
 async def handle_chat(ctx: Context, sender: str, message: ChatMessage) -> None:
-    await ctx.send(
-        sender,
-        ChatAcknowledgement(
-            timestamp=datetime.now(timezone.utc),
-            acknowledged_msg_id=message.msg_id,
-        ),
-    )
-
-    user_text = " ".join(
-        item.text for item in message.content if isinstance(item, TextContent)
-    ).strip()
-
-    if not user_text:
-        reply = (
-            "👋 Welcome to **Vison Forge** — your hardware project planning agent!\n\n"
-            "Describe a safe, low-voltage Arduino, ESP32, Raspberry Pi, or simple robotics project.\n\n"
-            "Include your budget, deadline, experience level, and team size for the best results.\n\n"
-            "**Example prompt:**\n"
-            "*I want an ESP32 plant watering system for two plants, under ₹2500, in 7 days, for a beginner team of 2.*"
+    try:
+        await ctx.send(
+            sender,
+            ChatAcknowledgement(
+                timestamp=datetime.now(timezone.utc),
+                acknowledged_msg_id=message.msg_id,
+            ),
         )
-    else:
-        ctx.logger.info(f"Processing Vison Forge request from {sender}: {user_text[:80]}")
-        loop = asyncio.get_event_loop()
-        reply = await loop.run_in_executor(_executor, _run_forge_sync, user_text, sender)
+    except Exception as exc:
+        ctx.logger.warning(f"Failed to send acknowledgement to {sender}: {exc}")
 
-    await ctx.send(sender, _make_response(reply))
+    try:
+        user_text = " ".join(
+            item.text for item in message.content if isinstance(item, TextContent)
+        ).strip()
+
+        if not user_text:
+            reply = (
+                "👋 Welcome to **Vison Forge** — your hardware project planning agent!\n\n"
+                "Describe a safe, low-voltage Arduino, ESP32, Raspberry Pi, or simple robotics project.\n\n"
+                "Include your budget, deadline, experience level, and team size for the best results.\n\n"
+                "**Example prompt:**\n"
+                "*I want an ESP32 plant watering system for two plants, under ₹2500, in 7 days, for a beginner team of 2.*"
+            )
+        else:
+            ctx.logger.info(f"Processing Vison Forge request from {sender}: {user_text[:80]}")
+            loop = asyncio.get_event_loop()
+            reply = await loop.run_in_executor(_executor, _run_forge_sync, user_text, sender)
+
+        await ctx.send(sender, _make_response(reply))
+    except Exception as exc:
+        ctx.logger.error(f"Error handling chat from {sender}: {exc}")
+        try:
+            await ctx.send(sender, _make_response(f"Vison Forge encountered an error: {exc}. Please try again."))
+        except Exception:
+            pass
 
 
 @chat_protocol.on_message(ChatAcknowledgement)

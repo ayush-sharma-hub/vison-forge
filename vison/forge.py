@@ -525,6 +525,54 @@ def render_detailed_wiring(request: ForgeRequest, plan: ForgePlan) -> str:
             "3. **Physical Water Separation:** Mount the electronics enclosure at least 30cm away and physically higher than the water reservoir to prevent accidental siphon backflow or splashing."
         )
 
+    elif "relay" in lower_idea or "channel" in lower_idea:
+        table = [
+            "| Module / Subsystem | Module Pin | ESP32 Controller Pin | Wire Type | Voltage and Signal Notes |",
+            "|---|---|---|---|---|",
+            "| 4-Channel Relay Module | IN1 (Relay Channel 1) | ESP32 GPIO 25 | Jumper (F-to-M) | Digital Output trigger |",
+            "| 4-Channel Relay Module | IN2 (Relay Channel 2) | ESP32 GPIO 26 | Jumper (F-to-M) | Digital Output trigger |",
+            "| 4-Channel Relay Module | IN3 (Relay Channel 3) | ESP32 GPIO 27 | Jumper (F-to-M) | Digital Output trigger |",
+            "| 4-Channel Relay Module | IN4 (Relay Channel 4) | ESP32 GPIO 32 | Jumper (F-to-M) | Digital Output trigger |",
+            "| 4-Channel Relay Module | VCC, GND | External 5V Supply, GND | Jumper (F-to-M) | 5V Coil power (Do not draw from 3.3V!) |",
+            "| 4-Channel Relay Module | JD-VCC / VCC Jumper | External 5V Supply | Jumper Cap | Optical isolation enabled |",
+            "| HC-SR04 Ultrasonic Sensor | VCC, GND | External 5V Supply, GND | Jumper (F-to-M) | 5V Operating power |",
+            "| HC-SR04 Ultrasonic Sensor | Trig (Trigger Pulse) | ESP32 GPIO 5 | Jumper (F-to-M) | 10us output pulse (3.3V TTL compatible) |",
+            "| HC-SR04 Ultrasonic Sensor | Echo (Signal Return) | ESP32 GPIO 18 (via Divider) | 1k/2k Divider | MANDATORY: Step 5V Echo down to 3.3V |",
+            "| Common Ground Bus | All GND Pins | ESP32 GND + External GND | Common Bus | Unify signal references |",
+        ]
+        return (
+            "## Text Wiring Blueprint: ESP32 with 4-Channel Relay & HC-SR04\n\n"
+            "**Architecture:** Opto-isolated relay switching with voltage-divided ultrasonic return.\n\n"
+            + "\n".join(table)
+            + "\n\n"
+            "### Critical Electrical Protection:\n"
+            "1. **Echo Voltage Divider:** HC-SR04 Echo pin outputs 5V. Insert a 1k resistor between Echo and GPIO 18, and a 2k resistor between GPIO 18 and GND to produce 3.33V safe input.\n"
+            "2. **Relay JD-VCC Isolation:** Remove the JD-VCC jumper on the 4-channel relay board and power JD-VCC from external 5V to achieve complete galvanic isolation from ESP32 logic."
+        )
+
+    elif "bme280" in lower_idea or "weather" in lower_idea or "rain" in lower_idea:
+        table = [
+            "| Module / Subsystem | Module Pin | Raspberry Pi 4 Header Pin | Wire Type | Voltage and Protocol Notes |",
+            "|---|---|---|---|---|",
+            "| BME280 Sensor (Temp/Hum/Press) | VIN / VDD | Pin 1 (3.3V Power) | Jumper (F-to-F) | 3.3V Clean Power Rail |",
+            "| BME280 Sensor (Temp/Hum/Press) | GND | Pin 6 (Ground) | Jumper (F-to-F) | System Ground |",
+            "| BME280 Sensor (Temp/Hum/Press) | SCL (I2C Clock) | Pin 5 (GPIO 3 / SCL1) | Jumper (F-to-F) | I2C Bus 1 Clock (Onboard 1.8k pull-up) |",
+            "| BME280 Sensor (Temp/Hum/Press) | SDA (I2C Data) | Pin 3 (GPIO 2 / SDA1) | Jumper (F-to-F) | I2C Bus 1 Data (Onboard 1.8k pull-up) |",
+            "| Raindrop Sensor Comparator Module | VCC | Pin 17 (3.3V Power) | Jumper (F-to-F) | 3.3V Logic Power |",
+            "| Raindrop Sensor Comparator Module | GND | Pin 9 (Ground) | Jumper (F-to-F) | System Ground |",
+            "| Raindrop Sensor Comparator Module | D0 (Digital Out) | Pin 11 (GPIO 17 / BCM 17) | Jumper (F-to-F) | Active LOW rain detection interrupt |",
+            "| Rain Sensing Nickel Board | Sensor Leads | LM393 Module Input | 2-wire cable | Variable resistance sensing surface |",
+        ]
+        return (
+            "## Text Wiring Blueprint: Raspberry Pi 4 Weather Station (BME280 + Rain Sensor)\n\n"
+            "**Protocol:** I2C Bus 1 (0x76 or 0x77) and GPIO Hardware Interrupt | **Logic:** 3.3V strictly\n\n"
+            + "\n".join(table)
+            + "\n\n"
+            "### Raspberry Pi 4 Hardware Configuration:\n"
+            "1. **Enable I2C:** Run `sudo raspi-config` -> Interface Options -> I2C -> Enable, then verify sensor address with `i2cdetect -y 1`.\n"
+            "2. **3.3V Pure Logic:** Raspberry Pi GPIO pins have NO 5V TOLERANCE. Never power the LM393 rain sensor from 5V; power it exclusively from Pin 17 (3.3V)."
+        )
+
     else:
         table = [
             "| Module / Subsystem | Module Pin | Controller Pin | Wire Type | Voltage Notes |",
