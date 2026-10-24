@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VISION (Vison Forge) — 3D Agentic Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --bg-card: rgba(16, 23, 38, 0.75);
+      --border-card: rgba(56, 189, 248, 0.2);
+      --accent-cyan: #00f2fe;
+      --accent-blue: #4facfe;
+      --accent-purple: #7928ca;
+      --accent-pink: #ff0080;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --glow-cyan: 0 0 25px rgba(0, 242, 254, 0.4);
+      --glow-purple: 0 0 25px rgba(121, 40, 202, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      perspective: 1200px;
+    }
+
+    /* Ambient animated 3D background */
+    .bg-grid {
+      position: absolute;
+      inset: -50%;
+      width: 200%;
+      height: 200%;
+      background-image: 
+        linear-gradient(rgba(0, 242, 254, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 242, 254, 0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      transform: rotateX(60deg) translateY(-20%) translateZ(-300px);
+      animation: grid-scroll 25s linear infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes grid-scroll {
+      0% { transform: rotateX(60deg) translateY(0%) translateZ(-300px); }
+      100% { transform: rotateX(60deg) translateY(40px) translateZ(-300px); }
+    }
+
+    .ambient-glow {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.35;
+    }
+    .glow-1 { top: 10%; left: 15%; width: 450px; height: 450px; background: var(--accent-cyan); }
+    .glow-2 { bottom: 10%; right: 15%; width: 500px; height: 500px; background: var(--accent-purple); }
+
+    /* Header Bar */
+    header {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 40px;
+      background: rgba(7, 9, 14, 0.85);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-badge {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: #fff;
+      box-shadow: var(--glow-cyan);
+    }
+
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(to right, #ffffff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-emerald);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-emerald);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--accent-emerald);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Slides Container */
+    .viewport {
+      position: relative;
+      flex: 1;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 40px;
+      perspective: 1400px;
+    }
+
+    .slide-deck {
+      position: relative;
+      width: 100%;
+      max-width: 1200px;
+      height: 640px;
+      transform-style: preserve-3d;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateZ(-200px) rotateY(15deg);
+      transition: all 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-radius: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 35px rgba(0, 242, 254, 0.1);
+      backdrop-filter: blur(20px);
+      padding: 40px 50px;
+      overflow: hidden;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateZ(0) rotateY(0deg);
+    }
+
+    .slide.previous {
+      transform: translateZ(-200px) rotateY(-15deg);
+    }
+
+    /* Slide Titles */
+    .slide-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent-cyan);
+      margin-bottom: 8px;
+    }
+
+    .slide-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 12px;
+      line-height: 1.2;
+    }
+
+    .slide-subtitle {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+      max-width: 820px;
+      line-height: 1.5;
+    }
+
+    /* 3D Glass Cards */
+    .card-grid {
+      display: grid;
+      gap: 20px;
+      width: 100%;
+    }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+    .card-3d {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 18px;
+      padding: 22px;
+      transition: all 0.35s ease;
+      position: relative;
+      overflow: hidden;
+      transform-style: preserve-3d;
+    }
+
+    .card-3d:hover {
+      transform: translateY(-6px) translateZ(20px);
+      border-color: rgba(0, 242, 254, 0.4);
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4), var(--glow-cyan);
+    }
+
+    .card-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 12px;
+    }
+
+    .badge-red { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .badge-cyan { background: rgba(0, 242, 254, 0.15); color: var(--accent-cyan); border: 1px solid rgba(0, 242, 254, 0.3); }
+    .badge-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-green { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .card-text {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    /* Character Avatar Cards (Slide 6) */
+    .char-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 24px 16px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      position: relative;
+    }
+
+    .char-avatar-box {
+      width: 72px;
+      height: 72px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      position: relative;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .char-avatar-box svg {
+      width: 44px;
+      height: 44px;
+    }
+
+    .char-name {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .char-role {
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    .char-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      text-align: left;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 10px;
+      padding: 10px;
+      width: 100%;
+    }
+
+    /* 3D Isometric Architecture Diagram (Slide 4) */
+    .arch-flow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .arch-node {
+      flex: 1;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 16px;
+      padding: 18px 14px;
+      text-align: center;
+      position: relative;
+      transform: perspective(600px) rotateX(10deg);
+      transition: all 0.3s ease;
+    }
+
+    .arch-node:hover {
+      transform: perspective(600px) rotateX(0deg) translateY(-5px);
+      border-color: var(--accent-cyan);
+      box-shadow: var(--glow-cyan);
+    }
+
+    .arch-arrow {
+      color: var(--accent-cyan);
+      font-size: 1.4rem;
+      font-weight: 800;
+      animation: bounce-right 1.5s infinite;
+    }
+
+    @keyframes bounce-right {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(5px); }
+    }
+
+    /* Interactive Live Demo Preview Box (Slide 5) */
+    .terminal-box {
+      background: #05070c;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 18px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      color: #38bdf8;
+      line-height: 1.5;
+      overflow-x: auto;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.8);
+    }
+
+    .table-spec {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-top: 12px;
+    }
+    .table-spec th {
+      text-align: left;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--accent-cyan);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+    }
+    .table-spec td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: #e2e8f0;
+    }
+
+    /* Navigation Footer Controls */
+    footer {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 40px;
+      background: rgba(7, 9, 14, 0.9);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    .slide-dots {
+      display: flex;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 32px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .dot.active {
+      width: 52px;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+      box-shadow: 0 0 12px var(--accent-cyan);
+    }
+
+    .nav-buttons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 9px 20px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.25s ease;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      color: #050b14;
+      border: none;
+      box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 6px 20px rgba(0, 242, 254, 0.5);
+      transform: translateY(-2px);
+    }
+
+    /* Speaker Notes Drawer */
+    #speakerNotes {
+      position: absolute;
+      bottom: 75px;
+      left: 40px;
+      right: 40px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(0, 242, 254, 0.4);
+      border-radius: 16px;
+      padding: 18px 24px;
+      z-index: 50;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+      display: none;
+      backdrop-filter: blur(20px);
+    }
+
+    #speakerNotes.visible {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-container">
+      <div class="logo-badge">V</div>
+      <div class="brand-title">VISION <span style="font-size:0.8em; color:var(--accent-cyan); font-weight:600;">/ Vison Forge</span></div>
+    </div>
+    <div style="display:flex; gap:16px; align-items:center;">
+      <div class="status-pill">
+        <div class="status-dot"></div>
+        <span>ASI:One & ACP Active</span>
+      </div>
+      <button class="btn btn-secondary" onclick="toggleNotes()" style="padding:6px 14px; font-size:0.75rem;">
+        🎙️ Speaker Notes (N)
+      </button>
+      <button class="btn btn-secondary" onclick="toggleFullScreen()" style="padding:6px 14px; font-size:0.75rem;">
+        ⛶ Fullscreen (F)
+      </button>
+    </div>
+  </header>
+
+  <!-- Viewport Slide Deck -->
+  <main class="viewport">
+    <div class="slide-deck">
+
+      <!-- SLIDE 1: Cinematic Opening Title -->
+      <div class="slide active" id="slide-0" data-notes="Slide 1 Hook: Welcome judges. Hardware prototyping is notoriously painful—beginners burn chips, buy the wrong voltage parts, and get stuck with generic AI hallucinations. We built VISION / Vison Forge: an autonomous agentic hardware architect running on Fetch.ai uAgents and ASI:One that turns low-voltage ideas into safe, buildable, real-source-priced hardware projects.">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%;">
+          <div>
+            <div class="slide-tag">Autonomous Agentic Hardware Architect</div>
+            <h1 class="slide-title" style="font-size:3.2rem; background: linear-gradient(135deg, #ffffff 40%, var(--accent-cyan) 80%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
+              VISION / Vison Forge
+            </h1>
+            <p class="slide-subtitle" style="font-size:1.25rem;">
+              Transforming raw maker concepts into safe, deterministic build-packs with live-catalog component pricing (₹ INR) and zero hallucination.
+            </p>
+          </div>
+          <!-- 3D Holographic Chip Badge -->
+          <div style="width:140px; height:140px; background:linear-gradient(135deg, rgba(0,242,254,0.1), rgba(121,40,202,0.1)); border:1px solid rgba(0,242,254,0.3); border-radius:24px; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:var(--glow-cyan); transform: perspective(500px) rotateY(-15deg);">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#00f2fe" stroke-width="1.5">
+              <rect x="4" y="4" width="16" height="16" rx="2"/>
+              <rect x="9" y="9" width="6" height="6"/>
+              <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>
+            </svg>
+            <span style="font-family:'JetBrains Mono'; font-size:0.7rem; color:#38bdf8; margin-top:8px;">ESP32 · RPi · Uno</span>
+          </div>
+        </div>
+
+        <div class="card-grid grid-4" style="margin-top:20px;">
+          <div class="card-3d">
+            <span class="card-badge badge-purple">Core Agent</span>
+            <div class="card-title">Sunil Kumar</div>
+            <div class="card-text">Team Lead · ACP uAgent protocol, Agentverse mailbox & submission.</div>
+          </div>
+          <div class="card-3d">
+            <span class="card-badge badge-cyan">Tools & Logic</span>
+            <div class="card-title">Ayush Sharma</div>
+            <div class="card-text">Logic Engineer · Quartz live API, safety rules & edge cases.</div>
+          </div>
+          <div class="card-3d">
+            <span class="card-badge badge-amber">Pitch & PPT</span>
+            <div class="card-title">Rajnish Raj Shekhar</div>
+            <div class="card-text">Presentation Lead · 3-minute pitch, storyline & business scope.</div>
+          </div>
+          <div class="card-3d">
+            <span class="card-badge badge-green">Demo & Docs</span>
+            <div class="card-title">Kamal Kumar Sharma</div>
+            <div class="card-text">QA & Media · README, demo video, terminal captures & Q&A.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 2: The Real-World Problem -->
+      <div class="slide" id="slide-1" data-notes="Slide 2 Problem: When college students and robotics teams start a project, 3 major bottlenecks occur: First, generic LLMs hallucinate pinouts and suggest incompatible sensors. Second, price estimates are purely fabricated. Third, people plug 220V AC into breadboards and burn parts. VISION fixes this with rigorous validation.">
+        <div class="slide-tag">01 · Problem Statement</div>
+        <h2 class="slide-title">The Hardware Prototyping Trap</h2>
+        <p class="slide-subtitle">Why 65%+ student and maker robotics projects fail before first assembly:</p>
+
+        <div class="card-grid grid-3">
+          <div class="card-3d">
+            <span class="card-badge badge-red">Danger</span>
+            <div class="card-title">High-Voltage Disasters</div>
+            <div class="card-text">
+              Beginners inadvertently mix 220V mains or incompatible battery discharge rates with 3.3V/5V logic pins, frying microcontrollers or causing fire hazards.
+            </div>
+          </div>
+          <div class="card-3d">
+            <span class="card-badge badge-red">Hallucination</span>
+            <div class="card-title">Phantom Component Pricing</div>
+            <div class="card-text">
+              Standard LLMs (ChatGPT/Claude) guess costs from outdated foreign blogs. Teams budget ₹1,000 only to find out parts cost ₹3,500 locally or are out of stock.
+            </div>
+          </div>
+          <div class="card-3d">
+            <span class="card-badge badge-red">Dead Ends</span>
+            <div class="card-title">Pin & Power Mismatches</div>
+            <div class="card-text">
+              Conflicting I2C addresses, unlevel-shifted 5V sensors burning 3.3V ESP32 GPIOs, and missing pull-up resistors stall teams for days.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 3: The Agentic Solution -->
+      <div class="slide" id="slide-2" data-notes="Slide 3 Solution: Vison Forge is not just a chatbot. It is a full deterministic planning agent. It has a Safety Gate that blocks dangerous requests, a live scraper for Quartz Components in India that gets actual stock and prices in Rupees, and generates complete build packs.">
+        <div class="slide-tag">02 · Agentic AI Solution</div>
+        <h2 class="slide-title">Autonomous Hardware Architect</h2>
+        <p class="slide-subtitle">Vison Forge evaluates, validates, prices, and schedules hardware builds in real time:</p>
+
+        <div class="card-grid grid-3">
+          <div class="card-3d">
+            <span class="card-badge badge-green">Safety First</span>
+            <div class="card-title">Deterministic Safety Gate</div>
+            <div class="card-text">
+              Hard safety boundaries automatically flag and reject dangerous mains AC / high-voltage requests, suggesting isolated optocouplers or relay alternatives.
+            </div>
+          </div>
+          <div class="card-3d">
+            <span class="card-badge badge-cyan">Zero Hallucination</span>
+            <div class="card-title">Live Indian Retailer Tool</div>
+            <div class="card-text">
+              Direct live integration with Quartz Components API. Only verified, in-stock parts with direct checkout URLs and exact timestamps are used.
+            </div>
+          </div>
+          <div class="card-3d">
+            <span class="card-badge badge-purple">Complete Artifacts</span>
+            <div class="card-title">Full Build-Pack Generation</div>
+            <div class="card-text">
+              Outputs deterministic `PROJECT_PLAN.md`, `BOM.csv`, `WIRING.md`, and `TEST_PLAN.md`, with sub-tasks customized to your team size.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 4: Architecture & Workflow -->
+      <div class="slide" id="slide-3" data-notes="Slide 4 Architecture: Here is our technical stack and data pipeline. The user messages our agent via ASI:One or terminal. The uAgent receives it over Agent Chat Protocol. The Forge Engine checks safety, queries Quartz Components for live INR prices, and returns the verified build pack.">
+        <div class="slide-tag">03 · Technical Architecture</div>
+        <h2 class="slide-title">Agent Protocol & Data Pipeline</h2>
+        <p class="slide-subtitle">Fetch.ai uAgents + Agent Chat Protocol (ACP) + Live Tool Execution:</p>
+
+        <div class="arch-flow">
+          <div class="arch-node">
+            <div style="font-size:1.8rem; margin-bottom:8px;">💬</div>
+            <div style="font-weight:700; color:#fff; font-size:0.9rem;">ASI:One Chat</div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">User Prompt & Budget</div>
+          </div>
+          <div class="arch-arrow">➔</div>
+          <div class="arch-node">
+            <div style="font-size:1.8rem; margin-bottom:8px;">🤖</div>
+            <div style="font-weight:700; color:var(--accent-cyan); font-size:0.9rem;">agent.py (uAgent)</div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">ACP Mailbox / Session</div>
+          </div>
+          <div class="arch-arrow">➔</div>
+          <div class="arch-node">
+            <div style="font-size:1.8rem; margin-bottom:8px;">🛡️</div>
+            <div style="font-weight:700; color:var(--accent-emerald); font-size:0.9rem;">Safety Gate</div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Voltage / Logic Verification</div>
+          </div>
+          <div class="arch-arrow">➔</div>
+          <div class="arch-node">
+            <div style="font-size:1.8rem; margin-bottom:8px;">🛒</div>
+            <div style="font-weight:700; color:var(--accent-amber); font-size:0.9rem;">Quartz Live API</div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Real ₹ Prices & Stock</div>
+          </div>
+          <div class="arch-arrow">➔</div>
+          <div class="arch-node">
+            <div style="font-size:1.8rem; margin-bottom:8px;">📦</div>
+            <div style="font-weight:700; color:var(--accent-purple); font-size:0.9rem;">Build Pack</div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">BOM, Wiring, Timelines</div>
+          </div>
+        </div>
+
+        <div class="card-grid grid-2" style="margin-top:24px;">
+          <div style="background:rgba(0,0,0,0.3); border-radius:12px; padding:14px; border:1px solid rgba(255,255,255,0.06);">
+            <span style="font-family:'JetBrains Mono'; color:var(--accent-cyan); font-size:0.75rem;">⚡ Performance:</span>
+            <span style="font-size:0.8rem; color:#cbd5e1; margin-left:8px;">ThreadPoolExecutor keeps asyncio event loop responsive during live scraping.</span>
+          </div>
+          <div style="background:rgba(0,0,0,0.3); border-radius:12px; padding:14px; border:1px solid rgba(255,255,255,0.06);">
+            <span style="font-family:'JetBrains Mono'; color:var(--accent-emerald); font-size:0.75rem;">🔒 Safety Standards:</span>
+            <span style="font-size:0.8rem; color:#cbd5e1; margin-left:8px;">Complies with Quartz `agents.md` & `robots.txt`; never handles financial/payment credentials.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 5: Live Demo & Artifacts -->
+      <div class="slide" id="slide-4" data-notes="Slide 5 Demo: Here is a live execution example: A user asks for an ESP32 dual-plant watering system under 2500 rupees for 2 students. Look at the output: Real component prices in INR, tiered into Basic, Recommended, and Premium, with direct purchase links and pinout tables.">
+        <div class="slide-tag">04 · Verified Execution Demo</div>
+        <h2 class="slide-title">Real Run: Automated Plant Watering System</h2>
+
+        <div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:20px; align-items:start;">
+          <div>
+            <div class="terminal-box">
+              <span style="color:#64748b;">// User Request via ASI:One:</span><br>
+              <span style="color:#f8fafc;">"ESP32 plant watering system for 2 plants, under ₹2500, in 7 days, for a team of 2."</span><br><br>
+              <span style="color:var(--accent-emerald);">✔ Safety Gate: PASS (Low voltage 5V/3.3V DC)</span><br>
+              <span style="color:var(--accent-cyan);">✔ Queried Quartz Components for 5 items</span><br>
+              <span style="color:#f8fafc;">✔ Computed 3 Verified Tiers:</span><br>
+              <span style="color:#94a3b8;">  • Basic: ₹845 (Submersible 5V pumps + capacitive sensors)</span><br>
+              <span style="color:#38bdf8;">  • Recommended: ₹1,420 (ESP32 NodeMCU + OLED + relays)</span><br>
+              <span style="color:#c084fc;">  • Premium: ₹2,190 (Solar charging kit + industrial probe)</span>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:0.85rem; font-weight:700; color:var(--accent-cyan); margin-bottom:6px;">Generated Project Pack:</div>
+            <table class="table-spec">
+              <thead>
+                <tr>
+                  <th>Artifact</th>
+                  <th>Contents</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="font-family:'JetBrains Mono'; font-weight:700; color:var(--accent-cyan);">BOM.csv</td>
+                  <td>Verified Quartz URLs, observed prices, stock</td>
+                </tr>
+                <tr>
+                  <td style="font-family:'JetBrains Mono'; font-weight:700; color:var(--accent-emerald);">WIRING.md</td>
+                  <td>GPIO pin table (D32, D33, D21, D22) & power rails</td>
+                </tr>
+                <tr>
+                  <td style="font-family:'JetBrains Mono'; font-weight:700; color:var(--accent-purple);">PLAN.md</td>
+                  <td>Day-by-day 7-day schedule mapped to 2 members</td>
+                </tr>
+                <tr>
+                  <td style="font-family:'JetBrains Mono'; font-weight:700; color:var(--accent-amber);">TESTS.md</td>
+                  <td>Dry sensor test, pump current test, WiFi reconnect</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 6: Team Roles & Ownership -->
+      <div class="slide" id="slide-5" data-notes="Slide 6 Team: Our team split is crystal clear: Sunil engineered the Agent Core and ASI:One integration; Ayush built the live scraper and safety logic; Rajnish crafted the pitch and business positioning; Kamal produced the documentation, architecture diagrams, and demo recordings.">
+        <div class="slide-tag">05 · Team Roles & Distribution</div>
+        <h2 class="slide-title">Engineering Division of Labor</h2>
+        <p class="slide-subtitle">Clear ownership and execution across the 4 core domains of the project:</p>
+
+        <div class="card-grid grid-4">
+          <!-- Sunil -->
+          <div class="char-card">
+            <div class="char-avatar-box" style="background:linear-gradient(135deg, rgba(121,40,202,0.3), rgba(0,242,254,0.3)); border:2px solid var(--accent-purple);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <div class="char-name">Sunil Kumar</div>
+            <div class="char-role" style="color:var(--accent-purple);">LEAD · AGENT CORE</div>
+            <div class="char-desc">
+              • GitHub Repository management<br>
+              • `agent.py` uAgent lifecycle<br>
+              • ACP Mailbox & Agentverse<br>
+              • ASI:One inspector testing<br>
+              • Final submission lead
+            </div>
+          </div>
+
+          <!-- Ayush -->
+          <div class="char-card">
+            <div class="char-avatar-box" style="background:linear-gradient(135deg, rgba(0,242,254,0.3), rgba(16,185,129,0.3)); border:2px solid var(--accent-cyan);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#00f2fe" stroke-width="2">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+              </svg>
+            </div>
+            <div class="char-name">Ayush Sharma</div>
+            <div class="char-role" style="color:var(--accent-cyan);">TOOLS & LOGIC</div>
+            <div class="char-desc">
+              • `retailer.py` live API adapter<br>
+              • Deterministic Safety Gate<br>
+              • `forge.py` planning rules<br>
+              • Edge cases & unit tests<br>
+              • Multi-agent logic design
+            </div>
+          </div>
+
+          <!-- Rajnish -->
+          <div class="char-card">
+            <div class="char-avatar-box" style="background:linear-gradient(135deg, rgba(245,158,11,0.3), rgba(239,68,68,0.3)); border:2px solid var(--accent-amber);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </div>
+            <div class="char-name">Rajnish Raj Shekhar</div>
+            <div class="char-role" style="color:var(--accent-amber);">PRESENTATION & PITCH</div>
+            <div class="char-desc">
+              • 3D UI PPT Deck design<br>
+              • 3-Minute pitch script<br>
+              • Problem & solution framing<br>
+              • Market differentiation<br>
+              • Rehearsals & judge delivery
+            </div>
+          </div>
+
+          <!-- Kamal -->
+          <div class="char-card">
+            <div class="char-avatar-box" style="background:linear-gradient(135deg, rgba(16,185,129,0.3), rgba(59,130,246,0.3)); border:2px solid var(--accent-emerald);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+            </div>
+            <div class="char-name">Kamal Kumar Sharma</div>
+            <div class="char-role" style="color:var(--accent-emerald);">DEMO & DOCS</div>
+            <div class="char-desc">
+              • Comprehensive `README.md`<br>
+              • System architecture diagrams<br>
+              • Demo video recording & audio<br>
+              • Terminal screenshots<br>
+              • Judge Q&A playbook prep
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 7: Future Scope & Conclusion -->
+      <div class="slide" id="slide-6" data-notes="Slide 7 Conclusion: Looking ahead, we plan to add computer vision to verify physical breadboards via phone cameras and expand to multi-agent automated procurement. VISION bridges the gap between software intelligence and physical hardware creation. Thank you, judges!">
+        <div class="slide-tag">06 · Competitive Advantage & Future</div>
+        <h2 class="slide-title">Why VISION Wins & What's Next</h2>
+        <p class="slide-subtitle">Positioned at the intersection of Agentic AI and physical maker technology:</p>
+
+        <div class="card-grid grid-3">
+          <div class="card-3d">
+            <span class="card-badge badge-cyan">Phase 1 (Complete)</span>
+            <div class="card-title">Verified Agent MVP</div>
+            <div class="card-text">
+              • Working ACP uAgent on ASI:One<br>
+              • Live ₹ pricing with Quartz API<br>
+              • Deterministic Safety Gate<br>
+              • Complete Markdown build-pack
+            </div>
+          </div>
+          <div class="card-3d">
+            <span class="card-badge badge-purple">Phase 2 (Next Quarter)</span>
+            <div class="card-title">Vision Breadboard Check</div>
+            <div class="card-text">
+              • Upload a smartphone photo of the circuit<br>
+              • Gemini Multimodal vision verifies wiring against `WIRING.md` before power-up.
+            </div>
+          </div>
+          <div class="card-3d">
+            <span class="card-badge badge-green">Phase 3 (Scale)</span>
+            <div class="card-title">Multi-Agent Procurement</div>
+            <div class="card-text">
+              • Autonomous Agent-to-Agent negotiation for parts across multiple distributors<br>
+              • Direct export to KiCad and Gerber files.
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:24px; text-align:center; padding:16px; background:rgba(0, 242, 254, 0.05); border:1px dashed rgba(0, 242, 254, 0.3); border-radius:14px;">
+          <span style="font-weight:700; color:#fff; font-size:1.05rem;">"VISION turns ideas into physical prototypes safely, accurately, and deterministically."</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Speaker Notes Modal / Drawer -->
+  <div id="speakerNotes">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span style="font-family:'JetBrains Mono'; font-weight:700; color:var(--accent-cyan); font-size:0.85rem;">🎙️ SPEAKER NOTES & TALKING POINTS:</span>
+      <span style="font-size:0.75rem; color:#64748b; cursor:pointer;" onclick="toggleNotes()">[Close (N)]</span>
+    </div>
+    <p id="speakerNotesText" style="font-size:0.95rem; color:#e2e8f0; line-height:1.5;"></p>
+  </div>
+
+  <!-- Footer Navigation -->
+  <footer>
+    <div style="font-size:0.85rem; font-family:'JetBrains Mono', monospace; color:var(--text-muted);">
+      Slide <span id="currentSlideNum" style="color:var(--accent-cyan); font-weight:700;">1</span> of 7
+    </div>
+
+    <div class="slide-dots" id="dotsContainer"></div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" onclick="prevSlide()">◀ Previous</button>
+      <button class="btn btn-primary" onclick="nextSlide()">Next Slide ▶</button>
+    </div>
+  </footer>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const dotsContainer = document.getElementById('dotsContainer');
+    const currentSlideNum = document.getElementById('currentSlideNum');
+    const speakerNotesText = document.getElementById('speakerNotesText');
+    const speakerNotes = document.getElementById('speakerNotes');
+    let currentIndex = 0;
+
+    // Build navigation dots
+    slides.forEach((_, idx) => {
+      const dot = document.createElement('div');
+      dot.className = `dot ${idx === 0 ? 'active' : ''}`;
+      dot.addEventListener('click', () => goToSlide(idx));
+      dotsContainer.appendChild(dot);
+    });
+
+    const dots = document.querySelectorAll('.dot');
+
+    function updateSlide() {
+      slides.forEach((slide, idx) => {
+        slide.classList.remove('active', 'previous');
+        if (idx === currentIndex) {
+          slide.classList.add('active');
+          speakerNotesText.textContent = slide.getAttribute('data-notes') || 'No notes for this slide.';
+        } else if (idx < currentIndex) {
+          slide.classList.add('previous');
+        }
+      });
+
+      dots.forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === currentIndex);
+      });
+
+      currentSlideNum.textContent = currentIndex + 1;
+    }
+
+    function nextSlide() {
+      if (currentIndex < slides.length - 1) {
+        currentIndex++;
+        updateSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateSlide();
+      }
+    }
+
+    function goToSlide(index) {
+      currentIndex = index;
+      updateSlide();
+    }
+
+    function toggleNotes() {
+      speakerNotes.classList.toggle('visible');
+    }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => console.log(err));
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        prevSlide();
+      } else if (e.key.toLowerCase() === 'n') {
+        toggleNotes();
+      } else if (e.key.toLowerCase() === 'f') {
+        toggleFullScreen();
+      }
+    });
+
+    // 3D tilt interaction for cards
+    document.querySelectorAll('.card-3d').forEach(card => {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
+        card.style.transform = `perspective(1000px) rotateX(${-y * 0.08}deg) rotateY(${x * 0.08}deg) translateZ(15px)`;
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)';
+      });
+    });
+
+    // Init first slide notes
+    updateSlide();
+  </script>
+</body>
+</html>

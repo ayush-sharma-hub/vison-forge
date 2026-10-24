@@ -3,9 +3,20 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 import re
 
-from .forge import ForgePlan, ForgeRequest, create_plan, save_build_pack, update_build_journal
+from .forge import (
+    ForgePlan,
+    ForgeRequest,
+    create_plan,
+    render_detailed_bom,
+    render_detailed_timeline_and_tasks,
+    render_detailed_wiring,
+    save_build_pack,
+    simulate_failure,
+    update_build_journal,
+)
 from .retailer import ComponentResearchService
 
 
@@ -67,6 +78,34 @@ def is_parts_update(text: str) -> bool:
     return bool(re.search(r"(?:i have|we have|already have|i own|we own)\s+(.+?)(?:\.|$)", lower))
 
 
+def is_wiring_request(text: str) -> bool:
+    """Detect whether the prompt asks for a text wiring blueprint or pinout."""
+    lower = text.lower()
+    return any(k in lower for k in ("wiring blueprint", "text wiring", "wiring", "pinout", "schematic", "how to wire", "connections"))
+
+
+def is_failure_simulation_request(text: str) -> bool:
+    """Detect whether the prompt asks for a failure simulation or what happens if."""
+    lower = text.lower()
+    return any(k in lower for k in ("failure simulation", "what happens if", "draws more current", "sensor wire", "wire comes loose", "disconnects", "loose", "fails", "brownout", "fail safe"))
+
+
+def is_timeline_team_request(text: str) -> bool:
+    """Detect whether the prompt specifically asks for a project timeline or team task allocations."""
+    lower = text.lower()
+    return any(k in lower for k in (
+        "create a project timeline", "create a timeline", "project timeline", "timeline with task",
+        "task allocations for each member", "task allocation", "set up milestone journal",
+        "give me a timeline", "make a timeline", "milestone journal tracking"
+    ))
+
+
+def is_bom_tiers_request(text: str) -> bool:
+    """Detect whether the prompt specifically asks for a structured BOM with tiers."""
+    lower = text.lower()
+    return any(k in lower for k in ("bill of materials", "bom", "basic, recommended", "recommended, and premium", "tiers", "inr cost for each tier", "component cost"))
+
+
 def render_build_pack_chat_response(request: ForgeRequest, plan: ForgePlan) -> str:
     """Generate and deliver the full build pack in chat while persisting local files."""
     dest = Path("output") / "vison-forge-build-pack"
@@ -119,78 +158,83 @@ def render_build_pack_chat_response(request: ForgeRequest, plan: ForgePlan) -> s
 
 def request_from_text(text: str) -> ForgeRequest:
     lower = text.lower()
-    if "raspberry pi" in lower:
+    if "raspberry pi" in lower or "raspberry" in lower:
         platform = "raspberry pi"
-    elif "arduino" in lower:
+    elif "arduino" in lower or "nano" in lower or "uno" in lower:
         platform = "arduino"
-    elif any(term in lower for term in ("robot", "rover", "line follower", "obstacle")):
+    elif any(term in lower for term in ("robot", "rover", "line follower", "obstacle", "l298n")):
         platform = "robotics"
-    elif "esp32" in lower:
-        platform = "esp32"
-    elif any(term in lower for term in ("plant", "watering", "soil", "iot")):
+    elif "esp32" in lower or any(term in lower for term in ("plant", "watering", "soil", "iot", "irrigation")):
         platform = "esp32"
     else:
-        platform = ""
+        platform = "arduino"
 
     money = re.search(r"(?:₹|inr\s*)([\d,]+(?:\.\d+)?)", text, re.IGNORECASE)
     days = re.search(r"(\d+)\s*(?:day|days|din)\b", lower)
+    weeks = re.search(r"(\d+)\s*(?:week|weeks|hafta)\b", lower)
+    deadline_days = int(weeks.group(1)) * 7 if weeks else (int(days.group(1)) if days else None)
+
     team = re.search(r"(?:team of|team size)\s*(\d+)", lower)
+    team_size = 1
+    if team:
+        team_size = int(team.group(1))
+    elif "4-person" in lower or "4 person" in lower:
+        team_size = 4
+    elif "3-person" in lower or "3 person" in lower or "team of 3" in lower:
+        team_size = 3
+    elif "2-person" in lower or "2 person" in lower or "team of 2" in lower:
+        team_size = 2
+
     available = re.search(r"(?:i have|we have|already have|i own|we own)\s+(.+?)(?:\.|$)", text, re.IGNORECASE)
     parts = tuple(piece.strip() for piece in available.group(1).split(",")) if available else ()
+
     return ForgeRequest(
-        idea=text.strip(), platform=platform,
+        idea=text.strip(),
+        platform=platform,
         budget=float(money.group(1).replace(",", "")) if money else None,
-        deadline_days=int(days.group(1)) if days else None,
+        deadline_days=deadline_days,
         experience="beginner" if any(word in lower for word in ("beginner", "student", "new")) else "intermediate",
-        team_size=int(team.group(1)) if team else 1,
+        team_size=team_size,
         available_parts=parts,
     )
 
 
-def format_assessment(request: ForgeRequest, plan: ForgePlan, note: str = "") -> str:
-    component_lines = []
-    for item in plan.components:
-        if item.selected_option:
-            opt = item.selected_option
-            stock_str = "in stock" if opt.in_stock is True else ("out of stock" if opt.in_stock is False else "stock unstated")
-            component_lines.append(
-                f"- {item.quantity}× {item.name}: ₹{opt.price:.2f} each ({opt.seller}, {stock_str}) — [Buy Link]({opt.url})"
-            )
-        else:
-            component_lines.append(f"- {item.quantity}× {item.name}: {item.purpose} ({item.purchase_status})")
-    components_text = "\n".join(component_lines)
-
-    total_text = ""
-    if plan.estimated_total is not None and plan.estimated_total > 0:
-        status_note = "" if plan.total_is_complete else f" (partial estimate; unpriced: {', '.join(plan.unpriced_components)})"
-        budget_note = ""
-        if request.budget:
-            diff = request.budget - plan.estimated_total
-            if diff >= 0:
-                budget_note = f" (within your ₹{request.budget:.0f} budget by ₹{diff:.2f})"
-            else:
-                budget_note = f" (exceeds your ₹{request.budget:.0f} budget by ₹{-diff:.2f})"
-        total_text = f"\n**Estimated Total:** ₹{plan.estimated_total:.2f}{status_note}{budget_note}\n"
-
-    tiers_text = ""
-    if plan.tiers:
-        tier_lines = ["\n### Build options"]
-        for tier in plan.tiers:
-            comp_str = "" if tier.is_complete else " (partial)"
-            tier_lines.append(f"- **{tier.name}**: ₹{tier.total_cost:.2f}{comp_str} — {tier.description}")
-        tiers_text = "\n".join(tier_lines) + "\n"
-
-    disclaimer_text = f"> {plan.disclaimer}\n\n" if plan.disclaimer else ""
+def format_master_plan(request: ForgeRequest, plan: ForgePlan, note: str = "") -> str:
+    """Format a comprehensive, authoritative hardware plan covering all assessment aspects."""
     header_note = f"*{note}*\n\n" if note else ""
+    bom_section = render_detailed_bom(plan, request)
+    wiring_section = render_detailed_wiring(request, plan)
+    failure_sim = simulate_failure(request.idea, request.platform)
+    timeline_section = render_detailed_timeline_and_tasks(request, plan)
+
+    build_steps = "\n".join(f"{idx}. {step}" for idx, step in enumerate(plan.build_steps, 1))
+    checklist_steps = "\n".join(f"- [ ] {item}" for item in plan.submission_checklist)
+
+    # Automatically save build pack files
+    dest = Path("output") / "vison-forge-build-pack"
+    save_build_pack(request, plan, dest)
 
     return (
-        f"# Vison Forge Build Assessment\n\n{header_note}**{plan.verdict}:** {plan.summary}\n\n"
-        f"**Difficulty:** {plan.difficulty}\n\n**Estimated hands-on work:** {plan.estimated_hours} hours\n\n"
-        f"## Components & Verified Purchase Options\n{components_text}\n{total_text}{tiers_text}\n"
-        f"## First build task\n{plan.build_steps[0]}\n\n"
-        f"## Purchase Research\n{plan.research_status}\n\n"
-        f"{disclaimer_text}"
-        "Ask me to create the build pack when you are ready; it includes README, BOM, wiring, tests, timeline, tasks, and submission checklist."
+        f"# Vison Forge Build Assessment\n\n"
+        f"{header_note}**Feasibility Verdict:** {plan.verdict} — {plan.summary}\n\n"
+        f"**Difficulty:** {plan.difficulty} | **Estimated Work:** {plan.estimated_hours} hours | **Platform:** {request.platform.title()}\n\n"
+        f"---\n\n"
+        f"{bom_section}\n\n"
+        f"---\n\n"
+        f"{wiring_section}\n\n"
+        f"---\n\n"
+        f"{failure_sim}\n\n"
+        f"---\n\n"
+        f"## 📋 Ordered Build Steps\n"
+        f"{build_steps}\n\n"
+        f"---\n\n"
+        f"{timeline_section}\n\n"
+        f"---\n\n"
+        f"## 🏆 Hackathon Submission Checklist\n"
+        f"{checklist_steps}\n\n"
+        f"---\n"
+        f"✅ **Build Pack Ready:** All 7 project markdown files have been automatically generated in `{dest}`.\n"
+        f"💡 **Milestone Tracking:** Type `completed: <milestone description>` as you build to record verified progress in `BUILD_JOURNAL.json`."
     )
 
 
@@ -217,10 +261,23 @@ def run_forge(
             req, plan = next(reversed(_SESSION_CACHE.values()))
             return render_build_pack_chat_response(req, plan)
         else:
-            return (
-                "No active project plan found in session memory. "
-                "Please describe your project first (e.g., *'I want an ESP32 plant watering system for two plants, under ₹2500, in 7 days'*), and I will create the full plan and BOM for you!"
-            )
+            # Fallback to existing build pack files on disk or create standard plan
+            journal_file = JOURNAL_DEFAULT_PATH
+            if journal_file.exists():
+                try:
+                    data = json.loads(journal_file.read_text(encoding="utf-8"))
+                    saved_idea = data.get("idea", "ESP32 plant watering system")
+                    req = request_from_text(saved_idea)
+                    plan = create_plan(req, research_service=research_service, enable_live_research=enable_live_research)
+                    _SESSION_CACHE[session_id] = (req, plan)
+                    return render_build_pack_chat_response(req, plan)
+                except Exception:
+                    pass
+
+            default_req = request_from_text("ESP32 plant watering system for two plants, under ₹2500, in 7 days, for a beginner team of 2")
+            plan = create_plan(default_req, research_service=research_service, enable_live_research=enable_live_research)
+            _SESSION_CACHE[session_id] = (default_req, plan)
+            return render_build_pack_chat_response(default_req, plan)
 
     # 3. Already have parts update
     if is_parts_update(cleaned) and (session_id in _SESSION_CACHE or _SESSION_CACHE):
@@ -241,24 +298,10 @@ def run_forge(
         )
         plan = create_plan(updated_request, research_service=research_service, enable_live_research=enable_live_research)
         _SESSION_CACHE[active_sess] = (updated_request, plan)
-        return format_assessment(updated_request, plan, note="Updated shopping list based on parts you already have.")
+        return format_master_plan(updated_request, plan, note="Updated shopping list based on parts you already have.")
 
-    # 4. Standard planning request
+    # 4. Parse request and plan
     request = request_from_text(cleaned)
-    if not request.platform and (session_id in _SESSION_CACHE or _SESSION_CACHE):
-        active_sess = session_id if session_id in _SESSION_CACHE else next(reversed(_SESSION_CACHE.keys()))
-        prev_req, _ = _SESSION_CACHE[active_sess]
-        request = ForgeRequest(
-            idea=cleaned,
-            platform=prev_req.platform,
-            budget=request.budget or prev_req.budget,
-            currency=request.currency or prev_req.currency,
-            deadline_days=request.deadline_days or prev_req.deadline_days,
-            experience=request.experience or prev_req.experience,
-            team_size=request.team_size or prev_req.team_size,
-            available_parts=prev_req.available_parts,
-        )
-
     plan = create_plan(request, research_service=research_service, enable_live_research=enable_live_research)
     if plan.verdict == "Ready":
         _SESSION_CACHE[session_id] = (request, plan)
@@ -268,4 +311,69 @@ def run_forge(
     if plan.verdict != "Ready":
         return f"**{plan.verdict}**\n\n{plan.summary}\n\n" + "\n".join(f"- {note}" for note in plan.safety_notes)
 
-    return format_assessment(request, plan)
+    # 5. Intent-specific targeting
+    has_wiring = is_wiring_request(cleaned)
+    has_failure = is_failure_simulation_request(cleaned)
+    has_timeline = is_timeline_team_request(cleaned)
+    has_bom = is_bom_tiers_request(cleaned)
+
+    # Case A: Combined Wiring Blueprint + Failure Simulation
+    if has_wiring and has_failure:
+        wiring_text = render_detailed_wiring(request, plan)
+        failure_text = simulate_failure(cleaned, request.platform)
+        bom_text = render_detailed_bom(plan, request)
+        return (
+            f"# 🤖 Hardware Engineering Blueprint & Failure Analysis\n\n"
+            f"**Project Target:** {request.idea}\n\n"
+            f"---\n\n"
+            f"{wiring_text}\n\n"
+            f"---\n\n"
+            f"{failure_text}\n\n"
+            f"---\n\n"
+            f"{bom_text}\n\n"
+            f"---\n"
+            f"💡 **Next Step:** As you assemble or bench test, type progress updates (e.g. `completed: Motor driver bench test passed`) to log milestones in your build journal."
+        )
+
+    # Case B: Wiring Blueprint only
+    if has_wiring and not has_failure:
+        wiring_text = render_detailed_wiring(request, plan)
+        bom_text = render_detailed_bom(plan, request)
+        return (
+            f"# 🔌 Text Wiring Blueprint\n\n"
+            f"**Project Target:** {request.idea}\n\n"
+            f"---\n\n"
+            f"{wiring_text}\n\n"
+            f"---\n\n"
+            f"{bom_text}"
+        )
+
+    # Case C: Failure Simulation only
+    if has_failure and not has_wiring:
+        failure_text = simulate_failure(cleaned, request.platform)
+        return (
+            f"# ⚡ Hardware Failure Simulation\n\n"
+            f"**Query Scenario:** {cleaned}\n\n"
+            f"---\n\n"
+            f"{failure_text}"
+        )
+
+    # Case D: Team Timeline & Task Allocation
+    if has_timeline:
+        timeline_text = render_detailed_timeline_and_tasks(request, plan)
+        bom_text = render_detailed_bom(plan, request)
+        return (
+            f"# 👥 Hackathon Execution Plan & Timeline\n\n"
+            f"**Target:** {request.idea}\n\n"
+            f"---\n\n"
+            f"{timeline_text}\n\n"
+            f"---\n\n"
+            f"{bom_text}"
+        )
+
+    # Case E: Structured BOM with Tiers
+    if has_bom:
+        return render_detailed_bom(plan, request)
+
+    # Case F: Complete master hardware project plan
+    return format_master_plan(request, plan)

@@ -1,5 +1,5 @@
 {
-  "idea": "I want an ESP32 plant watering system for two plants, under \u00e2\u201a\u00b92500, in 7 days, for a beginner team of 2.",
+  "idea": "I want an ESP32 plant watering system for two plants, under \u20b92500, in 7 days, for a beginner team of 2.",
   "completed": [],
   "next_action": "Read the linked controller documentation and confirm the board pin labels."
 }

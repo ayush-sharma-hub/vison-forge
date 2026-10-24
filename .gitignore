@@ -1,5 +1,6 @@
 .venv/
 .env
+private_keys.json
 __pycache__/
 .pytest_cache/
 *.py[cod]

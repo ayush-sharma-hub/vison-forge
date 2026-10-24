@@ -1,4 +1,4 @@
-# I want an ESP32 plant watering system for two plants, under â‚¹2500, in 7 days, for a beginner team of 2.
+# I want an ESP32 plant watering system for two plants, under ₹2500, in 7 days, for a beginner team of 2.
 
 ## Vison Forge verdict
 
@@ -7,11 +7,6 @@
 ## Difficulty
 
 Low to medium — suitable for a guided beginner build
-
-## Estimated Project Total
-
-- **Estimated Total:** ₹877.00 INR
-- **Completeness:** Complete (all required items verified)
 
 ## Safety
 

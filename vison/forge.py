@@ -452,3 +452,318 @@ def update_build_journal(journal_path: Path, log_entry: str, next_action: str | 
 
     journal_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     return data
+
+
+def render_detailed_wiring(request: ForgeRequest, plan: ForgePlan) -> str:
+    """Generate an authoritative pin-to-pin text wiring blueprint and power topology."""
+    lower_idea = request.idea.lower()
+    platform = _normalise(request.platform)
+    kind = _project_kind(request.idea)
+
+    if kind == "robot" or "robot" in lower_idea or "obstacle" in lower_idea or "line" in lower_idea:
+        is_nano = "nano" in lower_idea
+        mcu_name = "Arduino Nano V3" if is_nano else ("ESP32 DevKit" if platform == "esp32" else "Arduino Uno R3")
+        mcu_voltage = "3.3V" if platform == "esp32" else "5V"
+
+        table = [
+            "| Module / Subsystem | Module Pin | Controller / Supply Rail | Wire Type | Voltage & Signal Notes |",
+            "|---|---|---|---|---|",
+            f"| L298N Motor Driver | IN1 (Motor A Dir) | {mcu_name} D8 | Jumper (F-to-M) | 5V Logic control signal |",
+            f"| L298N Motor Driver | IN2 (Motor A Dir) | {mcu_name} D9 | Jumper (F-to-M) | 5V Logic control signal |",
+            f"| L298N Motor Driver | IN3 (Motor B Dir) | {mcu_name} D10 | Jumper (F-to-M) | 5V Logic control signal |",
+            f"| L298N Motor Driver | IN4 (Motor B Dir) | {mcu_name} D11 | Jumper (F-to-M) | 5V Logic control signal |",
+            "| L298N Motor Driver | 12V / VMS Power | Battery Pack Positive (+) | Stranded Wire | 6V–12V External Motor Rail (Do NOT power from MCU!) |",
+            f"| L298N Motor Driver | GND (Power Ground) | Battery (-) **AND** {mcu_name} GND | Stranded Wire | **MANDATORY COMMON GROUND** for reference voltage |",
+            "| L298N Motor Driver | OUT1, OUT2 | Left DC Gearmotor | Stranded Wire | Bi-directional H-Bridge motor output |",
+            "| L298N Motor Driver | OUT3, OUT4 | Right DC Gearmotor | Stranded Wire | Bi-directional H-Bridge motor output |",
+            f"| Left IR Sensor Module | OUT (Digital) | {mcu_name} D2 (Interrupt pin) | Jumper (F-to-M) | Active LOW obstacle detection |",
+            f"| Left IR Sensor Module | VCC, GND | {mcu_name} 5V rail, GND | Jumper (F-to-M) | Sensor operating power |",
+            f"| Right IR Sensor Module | OUT (Digital) | {mcu_name} D3 (Interrupt pin) | Jumper (F-to-M) | Active LOW obstacle detection |",
+            f"| Right IR Sensor Module | VCC, GND | {mcu_name} 5V rail, GND | Jumper (F-to-M) | Sensor operating power |",
+            f"| HC-SR04 Ultrasonic (opt)| Trig / Echo | {mcu_name} D12 / D13 | Jumper (F-to-M) | 10µs trigger pulse, Echo duration measure |",
+            f"| Microcontroller Power | USB / VIN | 5V USB Power Bank or 5V Reg | USB Cable | Isolated from high-current motor battery |",
+        ]
+
+        return (
+            f"## 🔌 Text Wiring Blueprint: {mcu_name} Robotics Platform\n\n"
+            f"**Logic Voltage:** {mcu_voltage} | **Architecture:** Dual-Rail Power Topology with Common Ground\n\n"
+            + "\n".join(table)
+            + "\n\n"
+            "### ⚠️ Critical Hardware Wiring Rules:\n"
+            "1. **Never Power Motors from MCU 5V Pin:** The ATmega/ESP32 onboard regulator is rated for <500mA. Two DC motors draw 1.2A–2.5A at startup or stall, which will instantly trigger brownout resets or permanently damage the regulator.\n"
+            "2. **Common Ground Connection:** The external battery pack GND must connect directly to the microcontroller GND. Without this shared ground, control signals lack a reference voltage and motors will jitter or fail to respond.\n"
+            "3. **Motor Noise Suppression:** Solder a 0.1µF ceramic capacitor across the terminals of each DC motor to suppress high-frequency EMI noise from inductive motor brushes."
+        )
+
+    elif kind == "plant-monitor" or "plant" in lower_idea or "watering" in lower_idea or "soil" in lower_idea:
+        is_esp32 = platform == "esp32"
+        mcu_name = "ESP32 DevKit V1" if is_esp32 else "Arduino Uno R3"
+        adc_pin = "GPIO 34 (ADC1 CH6)" if is_esp32 else "A0 (Analog In)"
+        relay_pin = "GPIO 26" if is_esp32 else "D4"
+
+        table = [
+            "| Module / Subsystem | Module Pin | Controller / Supply Rail | Wire Type | Voltage & Signal Notes |",
+            "|---|---|---|---|---|",
+            f"| Capacitive Soil Sensor | AOUT (Analog Signal) | {mcu_name} {adc_pin} | Jumper (F-to-M) | 0–3.0V analog moisture reading (corrosion-free) |",
+            f"| Capacitive Soil Sensor | VCC, GND | {mcu_name} 3.3V rail, GND | Jumper (F-to-M) | Power from 3.3V to ensure ADC compatibility |",
+            f"| 5V Relay Module | IN (Control Input) | {mcu_name} {relay_pin} | Jumper (F-to-M) | Active LOW or HIGH digital relay trigger |",
+            f"| 5V Relay Module | VCC, GND | {mcu_name} 5V rail, GND | Jumper (F-to-M) | Relay coil power (requires 5V supply) |",
+            "| 5V Relay Module | COM (Common) | External 5V USB Adapter (+) | Stranded Wire | Isolated pump power line |",
+            "| 5V Relay Module | NO (Normally Open)| Mini DC Submersible Pump (+) | Stranded Wire | Switched positive pump lead |",
+            "| Mini Submersible Pump | Negative Lead (-) | External 5V USB Adapter (-) | Stranded Wire | Direct ground return to external adapter |",
+            f"| Microcontroller Power | Micro USB / USB-C | Dedicated 5V USB Charger | USB Cable | Isolated clean supply for microcontroller |",
+        ]
+
+        return (
+            f"## 🔌 Text Wiring Blueprint: {mcu_name} Automated Plant Irrigation\n\n"
+            f"**Logic Voltage:** {'3.3V' if is_esp32 else '5V'} | **Architecture:** Optically Isolated Relay Power Isolation\n\n"
+            + "\n".join(table)
+            + "\n\n"
+            "### ⚠️ Critical Hardware Wiring Rules:\n"
+            "1. **Galvanic Isolation of Water Pump:** The water pump must NEVER share its positive power line with the microcontroller. Always feed the pump through the relay's COM/NO dry contacts using a dedicated external 5V USB adapter.\n"
+            "2. **3.3V ADC Protection:** For ESP32, power the soil sensor from 3.3V (not 5V) to ensure analog output never exceeds the 3.3V ADC limit on GPIO 34.\n"
+            "3. **Physical Water Separation:** Mount the electronics enclosure at least 30cm away and physically higher than the water reservoir to prevent accidental siphon backflow or splashing."
+        )
+
+    else:
+        table = [
+            "| Module / Subsystem | Module Pin | Controller Pin | Wire Type | Voltage Notes |",
+            "|---|---|---|---|---|",
+            f"| Main Input Sensor | Signal / Out | Controller Signal Pin | Jumper Wire | Match logic voltage ({'3.3V' if platform == 'esp32' else '5V'}) |",
+            f"| Main Input Sensor | VCC, GND | Controller 3.3V/5V, GND | Jumper Wire | Check sensor datasheet before applying power |",
+            f"| Status Indicator | Digital Pin | Controller Free GPIO | Jumper Wire | Use 220Ω current limiting resistor with LED |",
+            "| Microcontroller Power | USB Port | 5V USB Power Source | USB Cable | Clean regulated power |",
+        ]
+        return (
+            f"## 🔌 Text Wiring Blueprint: {platform.title()} System\n\n"
+            + "\n".join(table)
+            + "\n\n"
+            "### ⚠️ Hardware Guidelines:\n"
+            "1. Verify component logic voltages before connecting signals.\n"
+            "2. Establish common ground across all interconnected modules.\n"
+            "3. Test individual sensor readings before assembling final enclosure."
+        )
+
+
+def simulate_failure(query: str, platform: str = "") -> str:
+    """Run an engineering failure simulation analyzing physical hardware fault modes."""
+    lower = query.lower()
+
+    if any(k in lower for k in ("motor", "driver", "current", "l298n", "draws more", "stall", "brownout")):
+        return (
+            "## ⚡ Engineering Failure Simulation: Motor Driver Overcurrent & Controller Brownout\n\n"
+            "### 1. Failure Scenario & Symptoms\n"
+            "- **Observed Symptoms:** The microcontroller resets intermittently or reboots in an infinite loop whenever the motors start or turn. Sensor readings fluctuate wildly or return corrupted values, and motors experience stuttering.\n"
+            "- **Fault Trigger:** DC gearmotors draw a high inrush stall current (1.5A to 2.5A per motor) upon startup, acceleration, or physical obstruction.\n\n"
+            "### 2. Physical Root Cause Analysis\n"
+            "- **Voltage Sag / Brownout:** Microcontroller boards (like Arduino Uno/Nano ATmega328P or ESP32) have an onboard low-dropout linear regulator (e.g. AMS1117) rated for a maximum of 500mA–800mA. When motor current is drawn through the controller's 5V pin, the regulator cannot supply the load, causing the 5V rail to collapse below 4.0V.\n"
+            "- **BOD Reset:** The microcontroller's internal Brown-Out Detection (BOD) circuit detects the voltage dip below safe threshold and immediately triggers a hardware CPU reset.\n"
+            "- **Inductive Voltage Spikes (Back-EMF):** Collapsing magnetic fields in motor windings generate high-voltage reverse transient spikes that penetrate logic lines without proper snubbing.\n\n"
+            "### 3. Potential Consequences\n"
+            "- Thermal destruction of the microcontroller's onboard voltage regulator.\n"
+            "- Corrupted flash memory or EEPROM writes if brownout happens during storage write cycles.\n"
+            "- Uncontrolled runaway behavior of the robot if the motor driver latch remains in an unknown state.\n\n"
+            "### 4. Hardware Safeguards & Mitigation (The Fix)\n"
+            "1. **Dual-Rail Power Architecture:** Power the L298N motor driver VMS pin directly from a separate battery pack (4×AA, 5×AA, or certified 2S Li-ion battery with BMS). Never tap motor supply from the Arduino 5V/VIN header.\n"
+            "2. **Common Ground:** Tie the battery ground and microcontroller ground together at a single star-ground point.\n"
+            "3. **Decoupling Capacitors:** Place a 100µF to 470µF electrolytic capacitor across the L298N power terminals to buffer motor surge currents, and a 0.1µF ceramic capacitor across motor leads to suppress brush arc noise.\n"
+            "4. **Flyback Diodes:** Confirm the motor driver board has high-speed freewheeling diodes (the L298N module includes 8× 1N4007/FR107 diodes) to clamp inductive kickback."
+        )
+
+    elif any(k in lower for k in ("sensor wire", "comes loose", "disconnect", "loose", "soil moisture", "floating")):
+        return (
+            "## ⚡ Engineering Failure Simulation: Sensor Wire Disconnection / Open-Circuit Fault\n\n"
+            "### 1. Failure Scenario & Symptoms\n"
+            "- **Observed Symptoms:** The automated irrigation pump runs continuously without shutting off, completely draining the water reservoir and flooding the plant pots. Alternatively, the pump never turns on even when soil is visibly parched.\n"
+            "- **Fault Trigger:** An analog signal jumper wire or power lead to the capacitive/resistive soil moisture sensor vibrates loose or disconnects.\n\n"
+            "### 2. Physical Root Cause Analysis\n"
+            "- **Floating ADC Input:** Microcontroller analog input pins (ATmega328P A0 or ESP32 GPIO 34) feature extremely high input impedance (>100MΩ). When the sensor signal wire is severed, the pin floats with no pull-down/pull-up reference.\n"
+            "- **False Moisture Interpretation:** Atmospheric electrostatic charges or internal leakage current drive the floating pin voltage to 0V or drift down to ground rail. The firmware interprets 0V as '0% moisture / bone-dry soil', triggering the irrigation pump loop indefinitely.\n\n"
+            "### 3. Potential Consequences\n"
+            "- Plant root rot and irreversible drowning damage.\n"
+            "- Submersible water pump runs dry after depleting reservoir, leading to rotor seizure and burned-out motor windings.\n"
+            "- Overflowing water poses a short-circuit and corrosion hazard to nearby low-voltage electronics.\n\n"
+            "### 4. Hardware & Firmware Safeguards (The Fix)\n"
+            "1. **Software Run-Time Watchdog:** Enforce a hard ceiling in firmware: `MAX_PUMP_RUN_SECONDS = 5`. The pump is killed immediately after 5 seconds regardless of sensor readings, with a mandatory 1-hour cooldown.\n"
+            "2. **Sensor Sanity Bounds Check:** Legitimate capacitive sensors in air or water output between 1.2V and 2.8V (ADC raw values 300 to 900 on 10-bit). If the ADC reads <50 (disconnected to GND) or >1000 (disconnected to VCC), firmware flags a `HARDWARE_FAULT` and locks out the pump.\n"
+            "3. **Physical Hardware Pull-Resistor:** Place a high-value resistor (100kΩ) between the ADC pin and 3.3V/GND so an open circuit reliably pulls to an illegal fault code voltage."
+        )
+
+    elif any(k in lower for k in ("5v", "3.3v", "overvoltage", "level shifter", "logic level")):
+        return (
+            "## ⚡ Engineering Failure Simulation: 5V Logic Injection into 3.3V GPIO Rail\n\n"
+            "### 1. Failure Scenario & Symptoms\n"
+            "- **Observed Symptoms:** Microcontroller SoC (ESP32 or Raspberry Pi) becomes scalding hot to the touch. The specific GPIO pin stops detecting logic transitions, or the entire board enters an unbootable state with rapid current draw from the USB port.\n"
+            "- **Fault Trigger:** Directly connecting a 5V sensor signal (such as HC-SR04 Echo pin or 5V Arduino output) to a 3.3V-only microcontroller GPIO pin.\n\n"
+            "### 2. Physical Root Cause Analysis\n"
+            "- **Internal Diode Conduction:** Modern 3.3V CMOS microcontrollers have internal ESD clamping diodes connected from each I/O pin to the internal 3.3V power rail (VDD). When 5V is applied, the upper diode becomes forward-biased (5V - 3.3V = 1.7V drop across diode).\n"
+            "- **Current Injection & Latch-Up:** Large current (>15mA) rushes through the microscopic silicon diode structure into the 3.3V VDD rail. This triggers parasitic PNPN thyristor structures in CMOS silicon, creating a permanent short circuit between power and ground (silicon latch-up).\n\n"
+            "### 3. Potential Consequences\n"
+            "- Permanent destruction of the GPIO input pad and destruction of the SoC's internal analog/digital multiplexer.\n"
+            "- Fire or scorching of the MCU surface; USB port brownout on host computer.\n\n"
+            "### 4. Hardware Safeguards & Mitigation (The Fix)\n"
+            "1. **Resistive Voltage Divider:** For unidirectional signals (e.g., Echo pin to ESP32), insert a 1kΩ resistor between sensor out and GPIO, and a 2kΩ resistor between GPIO and GND: $V_{out} = 5V \\times \\frac{2k}{1k + 2k} = 3.33V$.\n"
+            "2. **Bi-Directional Logic Level Shifter:** For I2C/SPI bidirectional communication, use a dedicated BSS138 N-channel MOSFET level shifter module.\n"
+            "3. **Power Sensor from 3.3V Rail:** Whenever possible, verify if the sensor supports 3.3V supply (e.g. RCWL-1601 or 3.3V-compatible HC-SR04P)."
+        )
+
+    else:
+        return (
+            "## ⚡ Engineering Failure Simulation: Generic Subsystem Fault & Circuit Protection\n\n"
+            "### 1. Failure Scenario & Symptoms\n"
+            "- **Observed Symptoms:** Unexpected microcontroller reset, erratic input readings, or thermal buildup on power components.\n"
+            "- **Fault Trigger:** Signal line degradation, supply noise, or unexpected load transients.\n\n"
+            "### 2. Physical Root Cause Analysis\n"
+            "- Inductive kickback, fluctuating battery discharge curves, or ground loop voltage differences create noise margins that exceed TTL/CMOS thresholds.\n\n"
+            "### 3. Hardware & Firmware Safeguards\n"
+            "1. **Star-Ground Topology:** Route power grounds and signal grounds separately, uniting them only at the power source.\n"
+            "2. **Watchdog Timers:** Enable internal hardware watchdog timers (WDT) to safely reset firmware if execution hangs in a blocking loop.\n"
+            "3. **Current Limiting:** Place current-limiting series resistors (220Ω–470Ω) on output pins driving LEDs or external base transistors."
+        )
+
+
+def render_detailed_timeline_and_tasks(request: ForgeRequest, plan: ForgePlan) -> str:
+    """Generate a structured hackathon team timeline with per-member task allocations."""
+    lower = request.idea.lower()
+    team_size = max(1, min(request.team_size or 4, 6))
+
+    roles = [
+        (
+            "Member 1: Hardware & Power Lead",
+            [
+                "Verify all received components against the verified BOM datasheet specifications.",
+                "Assemble the dual-rail power distribution board (battery pack, L298N motor driver/relay isolation).",
+                "Measure stall currents and confirm shared common ground wiring.",
+                "Perform cold continuity checks with a multimeter before applying first power.",
+            ],
+        ),
+        (
+            "Member 2: Firmware & Navigation/Logic Lead",
+            [
+                "Set up the IDE toolchain, pin mapping header files, and board definitions.",
+                "Implement low-level drivers (PWM motor control or relay switching routines).",
+                "Develop the central state machine (sensor polling, threshold analysis, actuation loop).",
+                "Implement firmware watchdogs, sensor range validation, and emergency failsafe timeouts.",
+            ],
+        ),
+        (
+            "Member 3: QA, Testing & Failure Mode Engineer",
+            [
+                "Execute the subsystem test matrix (sensor calibration, bench motor load test).",
+                "Simulate physical failure modes (sensor disconnection, supply voltage dips, motor stalls).",
+                "Log all observed issues, resolutions, and test completions in `output/vison-forge-build-pack/BUILD_JOURNAL.json`.",
+                "Verify safety guidelines (no high voltages, temperature within safe thermal envelope).",
+            ],
+        ),
+        (
+            "Member 4: Documentation, BOM & Submission Lead",
+            [
+                "Maintain project documentation (`README.md`, `BOM.md`, `BUILD_PLAN.md`).",
+                "Record high-resolution photos and video evidence of each verified subsystem.",
+                "Produce the 3–5 minute hackathon demo video showing autonomous operation.",
+                "Prepare the final hackathon presentation deck and complete the submission checklist.",
+            ],
+        ),
+    ]
+
+    assigned_roles = roles[:team_size]
+
+    role_sections = []
+    for title, tasks in assigned_roles:
+        task_list = "\n".join(f"  - [ ] {t}" for t in tasks)
+        role_sections.append(f"### 👤 {title}\n{task_list}")
+
+    timeline_weeks = [
+        (
+            "Week 1: Architecture, BOM Procurement & Subsystem Bench Testing",
+            [
+                "Day 1–2: Confirm platform selection, finalize pinout allocations, order components via verified Quartz links.",
+                "Day 3–4: Set up git repository, initialize build journal, configure firmware toolchain.",
+                "Day 5–7: Bench test individual sensors and actuators in isolation on breadboard using USB power.",
+            ],
+        ),
+        (
+            "Week 2: Full Circuit Integration & Core Logic Implementation",
+            [
+                "Day 8–10: Assemble mechanical chassis/enclosure, wire dual-rail power topology with common ground.",
+                "Day 11–12: Integrate firmware state machine with real-time sensor interrupts and actuation routines.",
+                "Day 13–14: Conduct dry-run tests and measure current draw across all operational modes.",
+            ],
+        ),
+        (
+            "Week 3: Failure Stress Testing, Demo Video & Submission",
+            [
+                "Day 15–17: Run comprehensive failure simulations (wire disconnects, motor stall recovery, brownout resilience).",
+                "Day 18–19: Record 3-minute hackathon demonstration video and compile benchmark telemetry.",
+                "Day 20–21: Finalize README, verify submission checklist, tag git release, and submit to hackathon portal.",
+            ],
+        ),
+    ]
+
+    timeline_sections = []
+    for week_title, days in timeline_weeks:
+        day_lines = "\n".join(f"- **{d}**" for d in days)
+        timeline_sections.append(f"### 📅 {week_title}\n{day_lines}")
+
+    return (
+        f"## 👥 Project Team Task Allocations ({team_size}-Person Team)\n\n"
+        + "\n\n".join(role_sections)
+        + "\n\n## 🗓️ 3-Week Hackathon Execution Timeline\n\n"
+        + "\n\n".join(timeline_sections)
+        + "\n\n### 📝 Milestone Journal Tracking Setup\n"
+        "Your project progress is tracked in `output/vison-forge-build-pack/BUILD_JOURNAL.json`.\n"
+        "As your team achieves milestones, send updates to Vison Forge (e.g.):\n"
+        "- `completed: Sensor bench test passed and calibrated.`\n"
+        "- `completed: Motor driver dual-power wiring verified without brownouts.`\n"
+        "- `completed: Autonomous navigation demo recorded.`\n\n"
+        "Vison Forge will timestamp each milestone and maintain your official audit trail."
+    )
+
+
+def render_detailed_bom(plan: ForgePlan, request: ForgeRequest | None = None) -> str:
+    """Generate the structured Bill of Materials with live retailer links and tiers."""
+    component_lines = [
+        "| Component | Qty | Purpose | Verified Seller | Displayed Price | Stock | Buy Link | Checked |",
+        "|---|---:|---|---|---:|---|---|---|",
+    ]
+    for item in plan.components:
+        if item.selected_option:
+            opt = item.selected_option
+            stock = "In stock" if opt.in_stock is True else ("Out of stock" if opt.in_stock is False else "Unstated")
+            component_lines.append(
+                f"| {item.name} | {item.quantity} | {item.purpose} | {opt.seller} | ₹{opt.price:.2f} | {stock} | [Buy Option]({opt.url}) | {opt.checked_at} |"
+            )
+        else:
+            component_lines.append(
+                f"| {item.name} | {item.quantity} | {item.purpose} | — | Unavailable | — | — | {item.purchase_status} |"
+            )
+    bom_table = "\n".join(component_lines)
+
+    tier_blocks = []
+    if plan.tiers:
+        tier_blocks.append("### 🏷️ Verified Build Options (Tiers)")
+        for tier in plan.tiers:
+            status_text = "All items verified" if tier.is_complete else "Partial estimate"
+            tier_blocks.append(f"- **{tier.name} Tier (₹{tier.total_cost:.2f})**: {tier.description} ({status_text})")
+
+    total_note = ""
+    if plan.estimated_total is not None:
+        total_note = f"\n**Estimated Project Total:** ₹{plan.estimated_total:.2f} {plan.total_currency}"
+        if request and request.budget:
+            diff = request.budget - plan.estimated_total
+            if diff >= 0:
+                total_note += f" *(Within ₹{request.budget:.0f} budget by ₹{diff:.2f})*"
+            else:
+                total_note += f" *(Exceeds ₹{request.budget:.0f} budget by ₹{-diff:.2f})*"
+
+    disclaimer = plan.disclaimer or ComponentResearchService.DISCLAIMER
+
+    return (
+        "## 📦 Structured Bill of Materials (BOM)\n\n"
+        + bom_table
+        + "\n"
+        + total_note
+        + "\n\n"
+        + "\n".join(tier_blocks)
+        + f"\n\n> **Notice:** {disclaimer}"
+    )
