@@ -48,7 +48,6 @@ def response_message(text: str) -> ChatMessage:
         msg_id=uuid4(),
         content=[
             TextContent(type="text", text=text),
-            EndSessionContent(type="end-session"),
         ],
     )
 
@@ -66,8 +65,8 @@ async def handle_chat(ctx: Context, sender: str, message: ChatMessage) -> None:
     if not user_text:
         text = "Describe a low-voltage Arduino, ESP32, Raspberry Pi, or simple robotics project. Include your budget, deadline, and experience level."
     else:
-        ctx.logger.info("Running Vison Forge project assessment for an ASI:One request")
-        text = run_forge(user_text)
+        ctx.logger.info(f"Running Vison Forge project planning for ASI:One sender: {sender}")
+        text = run_forge(user_text, session_id=sender)
     await ctx.send(sender, response_message(text))
 
 

@@ -67,3 +67,26 @@ class ForgeTests(unittest.TestCase):
             text_res = handle_journal_update("completed: pump test passed", journal_path=journal_path)
             self.assertIn("Build Journal Updated", text_res)
             self.assertIn("Total Milestones Completed:** 2", text_res)
+
+    def test_multiturn_ready_delivers_build_pack(self):
+        session_id = "test-session-user-123"
+        # Turn 1: Project description
+        turn1 = run_forge(
+            "I want an ESP32 plant watering system for two plants, under ₹2500, in 7 days, for a beginner team of 2.",
+            enable_live_research=False,
+            session_id=session_id,
+        )
+        self.assertIn("Vison Forge Build Assessment", turn1)
+        self.assertIn("Ready", turn1)
+
+        # Turn 2: Mention with "i am ready"
+        turn2 = run_forge(
+            "@agent1qff49pfwt4d480grfvgeqwd4qfcqh4e979x3gjzlqjke2fcrerv3yutu2tz i am ready",
+            enable_live_research=False,
+            session_id=session_id,
+        )
+        self.assertIn("Official Project Build Pack", turn2)
+        self.assertIn("Bill of Materials", turn2)
+        self.assertIn("Ordered Build Steps", turn2)
+        self.assertIn("Wiring Blueprint", turn2)
+        self.assertIn("Hackathon Submission Checklist", turn2)
