@@ -1,0 +1,5 @@
+requests>=2.31,<3
+python-dotenv>=1.0,<2
+openai>=1.0,<4
+uagents>=0.26,<0.27
+
