@@ -1,10 +1,9 @@
 # Test Plan
 
-- Subsystem test: verify microcontroller logic on USB power before connecting actuators.
-- Power rail test: verify external voltage rail under load before connecting signal wires.
-- Emergency stop: confirm software failsafe kills motor/actuator power if signal is lost.
+- Log ten sensor readings and check for plausible change.
+- Disconnect the sensor and ensure the software reports a safe error state.
 
 ## Risks
 
-- Servo jerks, resets the ESP32, or fails to move when commanded. — Insufficient current from USB or shared ground loops causing brown-out resets due to high inrush current of the servo motor.
-- Current mismatch between controller GPIO pins and external actuators.
+- The requested sensor is unspecified.
+- Compatibility cannot be confirmed until the exact sensor model is selected.

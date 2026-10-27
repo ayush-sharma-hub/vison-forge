@@ -12,4 +12,4 @@
 - Day 4 (31 Oct): Implement core behaviour.
 - Day 5 (01 Nov): Calibrate and test failures.
 - Day 6 (02 Nov): Record demo and complete documentation.
-- Reserve the final day for recovery and submission; estimated hands-on work: about 6 hours.
+- Reserve the final day for recovery and submission; estimated hands-on work: about 14 hours.

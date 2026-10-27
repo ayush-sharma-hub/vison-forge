@@ -13,6 +13,7 @@ from .forge import (
     ForgeRequest,
     _difficulty,
     _project_kind,
+    _safety_notes,
     _timeline,
     _team_tasks,
     create_plan,
@@ -466,8 +467,20 @@ def format_master_plan(request: ForgeRequest, plan: ForgePlan, note: str = "") -
     dest = Path("output") / "vison-forge-build-pack"
     save_build_pack(request, plan, dest)
 
+    # Format prominent safety banner if any safety notes or hazards exist
+    safety_banner = ""
+    if plan.safety_notes:
+        notes_list = "\n".join(f"> - ⚠️ **{n}**" for n in plan.safety_notes)
+        safety_banner = (
+            f"> ⚠️ **CRITICAL SAFETY & HIGH-POWER / HIGH-VOLTAGE ADVISORY**\n"
+            f"{notes_list}\n"
+            f">\n"
+            f"> *Ensure galvanic isolation, rated fuses/BMS, and appropriate personal protective equipment (PPE) before powering.*\n\n"
+        )
+
     return (
         f"# Vison Forge Build Assessment\n\n"
+        f"{safety_banner}"
         f"{header_note}**Feasibility Verdict:** {plan.verdict} — {plan.summary}\n\n"
         f"**Difficulty:** {plan.difficulty} | **Estimated Work:** {plan.estimated_hours} hours | **Platform:** {request.platform.title()}\n\n"
         f"---\n\n"
@@ -633,81 +646,85 @@ def run_forge(
     request = request_from_text(cleaned)
     plan = create_plan(request, research_service=research_service, enable_live_research=enable_live_research)
 
-    # Check for hard safety blocks or unbuildable projects
-    if plan.verdict != "Ready":
+    # For open-ended, novel, or high-power/safety-sensitive queries, invoke AI advisor
+    # to extract dynamic, custom components and specific failure simulations
+    is_template_project = _project_kind(cleaned) in ("plant-monitor", "robot", "smart-lock", "weather-station", "home-automation")
+    has_actual_hazard = any(term in cleaned.lower() for term in ('mains', '220v', '230v', '110v', 'high voltage', 'lipo', 'drone', 'weapon', 'laser'))
+    if not is_template_project or has_actual_hazard:
         ai_report = analyze_hardware_query(cleaned)
-        return render_infeasible_report(cleaned, ai_report, plan)
+        if ai_report and ai_report.components:
+            # Merge hazards into safety notes so the warning banner displays on top
+            all_hazards = list(plan.safety_notes)
+            for h in ai_report.hazards:
+                if h not in all_hazards:
+                    all_hazards.append(h)
+            if not all_hazards and ai_report.hazards:
+                all_hazards = list(ai_report.hazards)
 
-    # For open-ended or arbitrary IoT queries outside fixed templates, check AI advisor
-    if _project_kind(cleaned) == "iot":
-        ai_report = analyze_hardware_query(cleaned)
-        if ai_report:
-            if not ai_report.is_buildable:
-                return render_infeasible_report(cleaned, ai_report, plan)
-            elif ai_report.components:
-                # Augment plan with dynamic components and research
-                service = research_service or ComponentResearchService()
-                dyn_components = []
-                comp_data = []
-                for c_dict in ai_report.components:
-                    c_name = str(c_dict.get("name", "Module"))
-                    c_qty = int(c_dict.get("quantity", 1))
-                    c_purpose = str(c_dict.get("purpose", "Main component"))
-                    c_volt = str(c_dict.get("voltage", "5V / 3.3V"))
+            # Augment plan with dynamic components and research
+            service = research_service or ComponentResearchService()
+            dyn_components = []
+            comp_data = []
+            for c_dict in ai_report.components:
+                c_name = str(c_dict.get("name", "Module"))
+                c_qty = int(c_dict.get("quantity", 1))
+                c_purpose = str(c_dict.get("purpose", "Main component"))
+                c_volt = str(c_dict.get("voltage", "5V / 3.3V"))
 
-                    options = tuple(service.research_component(c_name))
-                    selected = options[0] if options else None
-                    status = f"₹{selected.price:.2f} at {selected.seller}" if selected else "Price research available"
-                    dyn_components.append(
-                        Component(
-                            name=c_name,
-                            quantity=c_qty,
-                            purpose=c_purpose,
-                            voltage=c_volt,
-                            purchase_status=status,
-                            purchase_options=options,
-                            selected_option=selected,
-                        )
+                options = tuple(service.research_component(c_name))
+                selected = options[0] if options else None
+                status = f"₹{selected.price:.2f} at {selected.seller}" if selected else "Price research available"
+                dyn_components.append(
+                    Component(
+                        name=c_name,
+                        quantity=c_qty,
+                        purpose=c_purpose,
+                        voltage=c_volt,
+                        purchase_status=status,
+                        purchase_options=options,
+                        selected_option=selected,
                     )
-                    comp_data.append((c_name, c_qty, list(options)))
-
-                tiers = tuple(service.build_tiers(comp_data, currency=request.currency))
-                selections = [(c.quantity, c.selected_option, c.name) for c in dyn_components]
-                calc_total, calc_curr, is_complete, unpriced_list = service.calculate_total(selections, currency=request.currency)
-
-                plan = ForgePlan(
-                    verdict="Ready",
-                    summary=f"A custom {request.platform.title()} build: {ai_report.verdict}",
-                    safety_notes=tuple(ai_report.hazards) if ai_report.hazards else plan.safety_notes,
-                    difficulty=plan.difficulty,
-                    estimated_hours=plan.estimated_hours,
-                    components=tuple(dyn_components),
-                    compatibility_notes=(
-                        "Verify common ground across all logic and high-current power rails.",
-                        "Confirm sensor and actuator logic levels before powering.",
-                    ),
-                    wiring=tuple(ai_report.wiring_blueprint) if ai_report.wiring_blueprint else plan.wiring,
-                    build_steps=plan.build_steps,
-                    tests=(
-                        "Subsystem test: verify microcontroller logic on USB power before connecting actuators.",
-                        "Power rail test: verify external voltage rail under load before connecting signal wires.",
-                        "Emergency stop: confirm software failsafe kills motor/actuator power if signal is lost.",
-                    ),
-                    risks=(
-                        ai_report.failure_symptom + " — " + ai_report.failure_root_cause,
-                        "Current mismatch between controller GPIO pins and external actuators.",
-                    ),
-                    timeline=plan.timeline,
-                    team_tasks=plan.team_tasks,
-                    submission_checklist=plan.submission_checklist,
-                    research_status=f"Verified {len(dyn_components)} components via Quartz Components live retailer research.",
-                    tiers=tiers,
-                    estimated_total=calc_total,
-                    total_currency=calc_curr,
-                    total_is_complete=is_complete,
-                    unpriced_components=tuple(unpriced_list),
-                    disclaimer=plan.disclaimer,
                 )
+                comp_data.append((c_name, c_qty, list(options)))
+
+            tiers = tuple(service.build_tiers(comp_data, currency=request.currency))
+            selections = [(c.quantity, c.selected_option, c.name) for c in dyn_components]
+            calc_total, calc_curr, is_complete, unpriced_list = service.calculate_total(selections, currency=request.currency)
+
+            plan = ForgePlan(
+                verdict="Ready",
+                summary=f"A custom {request.platform.title()} build: {ai_report.verdict}",
+                safety_notes=tuple(all_hazards) if all_hazards else plan.safety_notes,
+                difficulty=plan.difficulty,
+                estimated_hours=plan.estimated_hours,
+                components=tuple(dyn_components),
+                compatibility_notes=(
+                    "Verify common ground across all logic and high-current power rails.",
+                    "Confirm sensor and actuator logic levels before powering.",
+                    "Ensure optoisolation between high voltage/current loads and microcontroller.",
+                ),
+                wiring=tuple(ai_report.wiring_blueprint) if ai_report.wiring_blueprint else plan.wiring,
+                build_steps=plan.build_steps,
+                tests=(
+                    "Subsystem test: verify microcontroller logic on USB power before connecting actuators.",
+                    "Power rail test: verify external voltage rail under load before connecting signal wires.",
+                    "Emergency stop: confirm software failsafe kills motor/actuator power if signal is lost.",
+                ),
+                risks=(
+                    ai_report.failure_symptom + " — " + ai_report.failure_root_cause,
+                    "Current mismatch between controller GPIO pins and external actuators.",
+                ),
+                timeline=plan.timeline,
+                team_tasks=plan.team_tasks,
+                submission_checklist=plan.submission_checklist,
+                research_status=f"Verified {len(dyn_components)} components via Quartz Components live retailer research.",
+                tiers=tiers,
+                estimated_total=calc_total,
+                total_currency=calc_curr,
+                total_is_complete=is_complete,
+                unpriced_components=tuple(unpriced_list),
+                disclaimer=plan.disclaimer,
+            )
 
     if plan.verdict == "Ready":
         _SESSION_CACHE[session_id] = (request, plan)

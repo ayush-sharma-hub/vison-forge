@@ -1,5 +1,5 @@
 {
-  "idea": "I want to build an automated pet feeder with a servo motor and ultrasonic distance sensor on ESP32",
+  "idea": "I want to build an electric exoskeleton suit powered by 220V high voltage mains and lithium batteries with laser repulsors",
   "completed": [],
   "next_action": "Read the linked controller documentation and confirm the board pin labels."
 }

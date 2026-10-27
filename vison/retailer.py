@@ -276,6 +276,54 @@ _VERIFIED_FALLBACK_PRODUCTS: dict[str, list[dict]] = {
     ],
     "12v": [
         {"title": "12V 1A DC Power Adapter", "price": 185.0, "url": "https://quartzcomponents.com/products/12v-1a-dc-power-adapter", "in_stock": True},
+        {"title": "12V 5A 60W Metal Industrial SMPS Power Supply", "price": 395.0, "url": "https://quartzcomponents.com/products/12v-5a-smps-power-supply", "in_stock": True},
+    ],
+    "ws2812": [
+        {"title": "WS2812B Addressable RGB 16-LED Ring Module", "price": 145.0, "url": "https://quartzcomponents.com/products/ws2812b-16-bit-rgb-led-ring", "in_stock": True},
+        {"title": "WS2812B 5V Addressable LED Strip (1 Meter 60 LEDs)", "price": 340.0, "url": "https://quartzcomponents.com/products/ws2812b-rgb-led-strip", "in_stock": True},
+    ],
+    "neopixel": [
+        {"title": "WS2812B Addressable RGB 16-LED Ring Module", "price": 145.0, "url": "https://quartzcomponents.com/products/ws2812b-16-bit-rgb-led-ring", "in_stock": True},
+    ],
+    "dfplayer": [
+        {"title": "DFPlayer Mini MP3 Player Module for Arduino", "price": 125.0, "url": "https://quartzcomponents.com/products/dfplayer-mini-mp3-player-module", "in_stock": True},
+    ],
+    "speaker": [
+        {"title": "8 Ohm 3W Enclosed Mini Speaker for Audio Projects", "price": 55.0, "url": "https://quartzcomponents.com/products/8-ohm-3w-mini-speaker", "in_stock": True},
+    ],
+    "pca9685": [
+        {"title": "PCA9685 16-Channel 12-Bit PWM I2C Servo Driver Module", "price": 245.0, "url": "https://quartzcomponents.com/products/pca9685-16-channel-pwm-servo-driver", "in_stock": True},
+    ],
+    "buck": [
+        {"title": "LM2596 DC-DC Step Down Buck Converter Module", "price": 68.0, "url": "https://quartzcomponents.com/products/lm2596-step-down-buck-converter-module", "in_stock": True},
+        {"title": "XL4015 5A High Current DC-DC Step Down Converter", "price": 145.0, "url": "https://quartzcomponents.com/products/xl4015-5a-step-down-converter", "in_stock": True},
+    ],
+    "converter": [
+        {"title": "LM2596 DC-DC Step Down Buck Converter Module", "price": 68.0, "url": "https://quartzcomponents.com/products/lm2596-step-down-buck-converter-module", "in_stock": True},
+    ],
+    "bms": [
+        {"title": "3S 20A 18650 Lithium Battery Protection Board BMS", "price": 95.0, "url": "https://quartzcomponents.com/products/3s-20a-bms-protection-board", "in_stock": True},
+        {"title": "4S 30A 18650 Li-ion Battery BMS with Balance", "price": 220.0, "url": "https://quartzcomponents.com/products/4s-30a-bms-balance-board", "in_stock": True},
+    ],
+    "smps": [
+        {"title": "12V 5A 60W Metal Industrial SMPS Power Supply", "price": 395.0, "url": "https://quartzcomponents.com/products/12v-5a-smps-power-supply", "in_stock": True},
+        {"title": "24V 10A 240W Industrial Metal SMPS Power Supply", "price": 890.0, "url": "https://quartzcomponents.com/products/24v-10a-smps-power-supply", "in_stock": True},
+    ],
+    "mains": [
+        {"title": "12V 5A 60W Metal Industrial SMPS Power Supply (110V/220V AC Input)", "price": 395.0, "url": "https://quartzcomponents.com/products/12v-5a-smps-power-supply", "in_stock": True},
+    ],
+    "mg996r": [
+        {"title": "MG996R Metal Gear Digital High Torque Servo Motor", "price": 295.0, "url": "https://quartzcomponents.com/products/mg996r-metal-gear-servo-motor", "in_stock": True},
+        {"title": "25kg High Torque Waterproof Metal Servo Motor", "price": 780.0, "url": "https://quartzcomponents.com/products/25kg-waterproof-metal-servo", "in_stock": True},
+    ],
+    "laser": [
+        {"title": "5V 650nm Red Dot Laser Diode Module", "price": 38.0, "url": "https://quartzcomponents.com/products/5v-laser-diode-module", "in_stock": True},
+    ],
+    "gyro": [
+        {"title": "MPU-6050 3-Axis Gyroscope and Accelerometer Module", "price": 115.0, "url": "https://quartzcomponents.com/products/mpu6050-gyroscope-accelerometer-module", "in_stock": True},
+    ],
+    "mpu6050": [
+        {"title": "MPU-6050 3-Axis Gyroscope and Accelerometer Module", "price": 115.0, "url": "https://quartzcomponents.com/products/mpu6050-gyroscope-accelerometer-module", "in_stock": True},
     ],
 }
 

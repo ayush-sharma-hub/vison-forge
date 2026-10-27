@@ -55,12 +55,16 @@ def analyze_hardware_query(user_query: str) -> FeasibilityReport | None:
         return None
 
     system_prompt = (
-        "You are Vison Forge, an elite hardware prototyping mentor and embedded systems engineer. "
-        "Analyze whether the user's hardware project is practically buildable by a student/hobbyist "
-        "using safe, low-voltage hobby electronics (5V/3.3V Arduino, ESP32, Raspberry Pi). "
-        "Strictly identify projects involving mains electricity (110V/220V), autonomous flying drones, "
-        "weapons, high-power lasers, or impossible physics as NOT DIY buildable, and provide deep "
-        "engineering explanations for why they fail and how to pivot to a safe alternative.\n"
+        "You are Vison Forge, an elite hardware systems architect, embedded robotics engineer, and prototyping mentor. "
+        "Your mission is to provide exhaustive, practical engineering implementation blueprints for ANY hardware project the user wants to build, "
+        "regardless of complexity, high voltage, mains electricity, drones, animatronic suits, exoskeletons, or robotics.\n\n"
+        "MANDATORY INSTRUCTIONS:\n"
+        "1. DO NOT REFUSE OR BLOCK ANY PROJECT. Always provide the actual physical engineering architecture, components, and wiring blueprint for how it can actually be built.\n"
+        "2. If high voltage (110V/220V/mains), high electricity/current (LiPo/battery banks), lasers, or mechanical hazards are involved, list detailed, technical electrical and physical hazards in 'hazards' so a prominent safety advisory can be placed at the very top.\n"
+        "3. If fictional sci-fi physics (like an Arc Reactor or flying repulsors) are requested, briefly note the theoretical limitation, then immediately deliver the realistic functional engineering build (e.g. high-capacity LiPo/SMPS power distribution with BMS, high-output COB/NeoPixel LED repulsors, sound synthesizers, pneumatic or high-torque metal-gear servos for motorized visor/exoskeleton articulation, micro-OLED HUD).\n"
+        "4. Always set 'is_diy_buildable': true (or true for the functional engineering equivalent).\n"
+        "5. Provide concrete, commercially available components (microcontrollers, motor drivers, relays, power supplies, buck converters, sensors, actuators, wiring) in 'components'.\n"
+        "6. Provide an exact, pin-by-pin or terminal-by-terminal connection guide in 'wiring_blueprint'.\n"
         "Always respond with a valid, parseable JSON object only."
     )
 
@@ -114,7 +118,7 @@ Respond with ONLY a JSON object formatted as:
         fail_sim = data.get("failure_simulation") or {}
 
         return FeasibilityReport(
-            is_buildable=bool(data.get("is_diy_buildable", True)),
+            is_buildable=True,  # Always provide the complete build blueprint and engineering architecture
             verdict=str(data.get("verdict", "Feasibility Assessment Completed")),
             why_cannot_build=list(data.get("why_cannot_build", [])),
             hazards=list(data.get("hazards", [])),
@@ -128,3 +132,4 @@ Respond with ONLY a JSON object formatted as:
         )
     except Exception:
         return None
+

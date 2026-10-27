@@ -13,14 +13,17 @@ from .retailer import BuildTier, ComponentResearchService, PurchaseOption
 
 SUPPORTED_PLATFORMS = ("arduino", "esp32", "raspberry pi", "robotics")
 UNSAFE_TERMS = {
-    "mains": "Mains electricity is outside Vison Forge's supported scope.",
-    "220v": "Mains electricity is outside Vison Forge's supported scope.",
-    "230v": "Mains electricity is outside Vison Forge's supported scope.",
-    "110v": "Mains electricity is outside Vison Forge's supported scope.",
-    "lipo": "High-current battery builds need specialist supervision and are outside this MVP.",
-    "drone": "Drones are outside this MVP because they introduce flight and battery safety risks.",
-    "medical": "Medical devices are outside this MVP.",
-    "weapon": "Weapons are not supported.",
+    "mains": "Mains AC voltage (110V-230V): Use an isolated industrial SMPS, GFCI breaker, and fused relay optocouplers with zero exposed conductors.",
+    "220v": "220V AC electricity: Requires optoisolated relays, PCB creepage distance >6mm, and certified earthed metal enclosure.",
+    "230v": "230V AC electricity: Requires optoisolated relays, PCB creepage distance >6mm, and certified earthed metal enclosure.",
+    "110v": "110V AC electricity: Requires optoisolated relays, PCB creepage distance >6mm, and certified earthed metal enclosure.",
+    "high voltage": "High-voltage subsystem: Must incorporate galvanic isolation, flyback diodes, and dedicated earthing.",
+    "electricity": "Electrical high current: Dedicated power distribution rails with common star-grounding are required.",
+    "lipo": "Lithium Polymer / Li-ion batteries: A dedicated Battery Management System (BMS) with overcurrent, balancing, and thermal cutoff is mandatory.",
+    "drone": "Autonomous flight propellers: Hardware kill-switch, propeller safety guards, and radio fail-safe logic are required.",
+    "medical": "Medical-grade equipment: Requires redundant safety cutoffs, optoisolation, and clinical safety compliance.",
+    "weapon": "Kinetic/repulsor/high-energy mechanism: Physical interlocks, electronic dead-man switches, and blast/pinch-proof barriers required.",
+    "laser": "Laser diodes: Use certified safety goggles (OD 5+ rating) matched to the laser wavelength and active beam warning indicators.",
 }
 
 
@@ -95,6 +98,8 @@ def _project_kind(idea: str) -> str:
         return "weather-station"
     if _contains_any(lower, ("home automation", "smart home")):
         return "home-automation"
+    if _contains_any(lower, ("iron man", "suit", "animatronic", "wearable", "exoskeleton", "cosplay", "helmet", "armor")):
+        return "wearable-animatronic"
     return "iot"
 
 
@@ -145,7 +150,7 @@ def _components_for(request: ForgeRequest, kind: str) -> tuple[Component, ...]:
             Component("12V solenoid lock (door latch)", 1, "Electric door latch actuator", "12V DC — use relay isolation, never from MCU"),
             Component("5V relay module with 3.3V-compatible input", 1, "Safely switch 12V solenoid from 3.3V MCU signal", "5V coil"),
             Component("12V DC power adapter (1a+)", 1, "Power for solenoid — isolated from MCU rail", "12V"),
-            Component("LED indicators (green + red)", 2, "Access granted / denied feedback", "3.3V via 220Ω resistor"),
+            Component("LED indicators (green + red)", 2, "Access granted / denied feedback", "3.3V via 220 Ohm resistor"),
         ))
     elif kind == "weather-station":
         base.extend((
@@ -158,6 +163,16 @@ def _components_for(request: ForgeRequest, kind: str) -> tuple[Component, ...]:
             Component("4-channel relay module with optocoupler", 1, "Switch AC/DC loads safely", "5V coil, 3.3V-compatible input"),
             Component("DHT22 digital temperature and humidity sensor", 1, "Environmental monitoring", "3.3V–5V"),
             Component("HC-SR501 PIR motion sensor module", 1, "Occupancy detection for automation", "5V"),
+        ))
+    elif kind == "wearable-animatronic":
+        base.extend((
+            Component("MG996R Metal Gear High-Torque Servo Motor", 2, "Actuate helmet visor opening and closing mechanism", "5V–6V (high stall current 1.5A)"),
+            Component("WS2812B Addressable RGB NeoPixel 16-LED Ring", 2, "Repulsor palm and Arc Reactor glowing effect", "5V DC"),
+            Component("DFPlayer Mini MP3 Player Module", 1, "High-fidelity repulsor blast and Jarvis audio effects", "3.3V–5V"),
+            Component("8 Ohm 3W Audio Speaker with Enclosure", 1, "Audio playback in helmet or chest", "3W"),
+            Component("LM2596 DC-DC 5A Step-Down Buck Converter", 1, "Dedicated regulated 5V power rail for servos (isolates MCU)", "Input 7V-30V, Output 5V"),
+            Component("PCA9685 16-Channel 12-Bit PWM I2C Servo Driver", 1, "Jitter-free multi-servo control without loading MCU timers", "5V VCC, 3.3V/5V I2C"),
+            Component("MPU-6050 6-DOF Accelerometer and Gyroscope", 1, "Palm tilt and head-motion gesture detection", "3.3V I2C"),
         ))
     else:
         base.append(Component("Sensor matched to the project goal", 1, "Collect the main project input", "Confirm from datasheet"))
@@ -175,7 +190,7 @@ def _safety_notes(request: ForgeRequest) -> tuple[str, ...]:
 
 
 def _difficulty(request: ForgeRequest, kind: str) -> tuple[str, int]:
-    hours = {"plant-monitor": 10, "robot": 14, "iot": 8, "smart-lock": 12, "weather-station": 8, "home-automation": 12}.get(kind, 8)
+    hours = {"plant-monitor": 10, "robot": 14, "iot": 8, "smart-lock": 12, "weather-station": 8, "home-automation": 12, "wearable-animatronic": 16}.get(kind, 8)
     if request.experience.lower() not in {"beginner", "student"}:
         hours = max(5, hours - 2)
     if request.deadline_days and request.deadline_days < 3:
@@ -224,14 +239,7 @@ def create_plan(
             research_status="No source research was performed.",
         )
     safety = _safety_notes(request)
-    if safety and any(term in request.idea.lower() for term in UNSAFE_TERMS):
-        return ForgePlan(
-            verdict="Scale down",
-            summary=f"{safety[0]} Build a low-voltage simulation or seek qualified in-person supervision.",
-            safety_notes=safety, difficulty="Unsupported safely", estimated_hours=0, components=(), compatibility_notes=(), wiring=(),
-            build_steps=("Remove the unsafe element and restate the project using low-voltage, hobby-grade components.",), tests=(), risks=(), timeline=(), team_tasks=(), submission_checklist=(),
-            research_status="No purchase research was performed for an unsupported request.",
-        )
+    # Do NOT block or scale down: attach safety notes so they render as a high-visibility warning on top!
 
     kind = _project_kind(request.idea)
     difficulty, hours = _difficulty(request, kind)
@@ -605,7 +613,7 @@ def render_detailed_wiring(request: ForgeRequest, plan: ForgePlan) -> str:
             "|---|---|---|---|---|",
             f"| Main Input Sensor | Signal / Out | Controller Signal Pin | Jumper Wire | Match logic voltage ({'3.3V' if platform == 'esp32' else '5V'}) |",
             f"| Main Input Sensor | VCC, GND | Controller 3.3V/5V, GND | Jumper Wire | Check sensor datasheet before applying power |",
-            f"| Status Indicator | Digital Pin | Controller Free GPIO | Jumper Wire | Use 220Ω current limiting resistor with LED |",
+            f"| Status Indicator | Digital Pin | Controller Free GPIO | Jumper Wire | Use 220 Ohm current limiting resistor with LED |",
             "| Microcontroller Power | USB Port | 5V USB Power Source | USB Cable | Clean regulated power |",
         ]
         return (
@@ -651,7 +659,7 @@ def simulate_failure(query: str, platform: str = "") -> str:
             "- **Observed Symptoms:** The automated irrigation pump runs continuously without shutting off, completely draining the water reservoir and flooding the plant pots. Alternatively, the pump never turns on even when soil is visibly parched.\n"
             "- **Fault Trigger:** An analog signal jumper wire or power lead to the capacitive/resistive soil moisture sensor vibrates loose or disconnects.\n\n"
             "### 2. Physical Root Cause Analysis\n"
-            "- **Floating ADC Input:** Microcontroller analog input pins (ATmega328P A0 or ESP32 GPIO 34) feature extremely high input impedance (>100MΩ). When the sensor signal wire is severed, the pin floats with no pull-down/pull-up reference.\n"
+            "- **Floating ADC Input:** Microcontroller analog input pins (ATmega328P A0 or ESP32 GPIO 34) feature extremely high input impedance (>100M Ohm). When the sensor signal wire is severed, the pin floats with no pull-down/pull-up reference.\n"
             "- **False Moisture Interpretation:** Atmospheric electrostatic charges or internal leakage current drive the floating pin voltage to 0V or drift down to ground rail. The firmware interprets 0V as '0% moisture / bone-dry soil', triggering the irrigation pump loop indefinitely.\n\n"
             "### 3. Potential Consequences\n"
             "- Plant root rot and irreversible drowning damage.\n"
@@ -660,7 +668,7 @@ def simulate_failure(query: str, platform: str = "") -> str:
             "### 4. Hardware & Firmware Safeguards (The Fix)\n"
             "1. **Software Run-Time Watchdog:** Enforce a hard ceiling in firmware: `MAX_PUMP_RUN_SECONDS = 5`. The pump is killed immediately after 5 seconds regardless of sensor readings, with a mandatory 1-hour cooldown.\n"
             "2. **Sensor Sanity Bounds Check:** Legitimate capacitive sensors in air or water output between 1.2V and 2.8V (ADC raw values 300 to 900 on 10-bit). If the ADC reads <50 (disconnected to GND) or >1000 (disconnected to VCC), firmware flags a `HARDWARE_FAULT` and locks out the pump.\n"
-            "3. **Physical Hardware Pull-Resistor:** Place a high-value resistor (100kΩ) between the ADC pin and 3.3V/GND so an open circuit reliably pulls to an illegal fault code voltage."
+            "3. **Physical Hardware Pull-Resistor:** Place a high-value resistor (100k Ohm) between the ADC pin and 3.3V/GND so an open circuit reliably pulls to an illegal fault code voltage."
         )
 
     elif any(k in lower for k in ("5v", "3.3v", "overvoltage", "level shifter", "logic level")):
@@ -676,7 +684,7 @@ def simulate_failure(query: str, platform: str = "") -> str:
             "- Permanent destruction of the GPIO input pad and destruction of the SoC's internal analog/digital multiplexer.\n"
             "- Fire or scorching of the MCU surface; USB port brownout on host computer.\n\n"
             "### 4. Hardware Safeguards & Mitigation (The Fix)\n"
-            "1. **Resistive Voltage Divider:** For unidirectional signals (e.g., Echo pin to ESP32), insert a 1kΩ resistor between sensor out and GPIO, and a 2kΩ resistor between GPIO and GND: $V_{out} = 5V \\times \\frac{2k}{1k + 2k} = 3.33V$.\n"
+            "1. **Resistive Voltage Divider:** For unidirectional signals (e.g., Echo pin to ESP32), insert a 1k Ohm resistor between sensor out and GPIO, and a 2k Ohm resistor between GPIO and GND: $V_{out} = 5V \\times \\frac{2k}{1k + 2k} = 3.33V$.\n"
             "2. **Bi-Directional Logic Level Shifter:** For I2C/SPI bidirectional communication, use a dedicated BSS138 N-channel MOSFET level shifter module.\n"
             "3. **Power Sensor from 3.3V Rail:** Whenever possible, verify if the sensor supports 3.3V supply (e.g. RCWL-1601 or 3.3V-compatible HC-SR04P)."
         )
@@ -692,7 +700,7 @@ def simulate_failure(query: str, platform: str = "") -> str:
             "### 3. Hardware & Firmware Safeguards\n"
             "1. **Star-Ground Topology:** Route power grounds and signal grounds separately, uniting them only at the power source.\n"
             "2. **Watchdog Timers:** Enable internal hardware watchdog timers (WDT) to safely reset firmware if execution hangs in a blocking loop.\n"
-            "3. **Current Limiting:** Place current-limiting series resistors (220Ω–470Ω) on output pins driving LEDs or external base transistors."
+            "3. **Current Limiting:** Place current-limiting series resistors (220 Ohm–470 Ohm) on output pins driving LEDs or external base transistors."
         )
 
 
