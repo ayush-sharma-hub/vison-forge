@@ -95,8 +95,12 @@ def is_pinout_compatibility_request(text: str) -> bool:
     lower = text.lower()
     return any(k in lower for k in (
         "pinout compatibility", "pin conflict", "pin conflicts", "power issues",
-        "gpio pins to use", "which gpio", "verify pinout", "flag any pin",
+        "gpio pins to use", "which gpio", "verify pinout", "verify the pinout",
+        "flag any pin", "flag any conflict", "flag conflicts",
         "no conflicts", "recommend which gpio", "check pinout",
+        "gpio conflict", "check for conflicts", "any conflicts",
+        "pinout check", "gpio check", "pin assignment", "gpio assignment",
+        "which pins", "what pins", "pin mapping", "gpio mapping",
     ))
 
 
@@ -321,18 +325,16 @@ def render_price_check(text: str, plan, request) -> str:
     )
 
 
-    """Detect whether the prompt asks for a failure simulation or what happens if."""
-    lower = text.lower()
-    return any(k in lower for k in ("failure simulation", "what happens if", "draws more current", "sensor wire", "wire comes loose", "disconnects", "loose", "fails", "brownout", "fail safe"))
-
-
 def is_timeline_team_request(text: str) -> bool:
     """Detect whether the prompt specifically asks for a project timeline or team task allocations."""
     lower = text.lower()
     return any(k in lower for k in (
         "create a project timeline", "create a timeline", "project timeline", "timeline with task",
         "task allocations for each member", "task allocation", "set up milestone journal",
-        "give me a timeline", "make a timeline", "milestone journal tracking"
+        "give me a timeline", "make a timeline", "milestone journal tracking",
+        "project milestones", "generate milestones", "milestones", "hackathon", "3 weeks",
+        "week until", "weeks until", "team members", "team of", "person team",
+        "team size", "work breakdown", "sprint plan", "execution plan",
     ))
 
 
@@ -614,6 +616,19 @@ def run_forge(
         _SESSION_CACHE[active_sess] = (updated_request, plan)
         return format_master_plan(updated_request, plan, note="Updated shopping list based on parts you already have.")
 
+    # 4a. Fast-path: pinout/GPIO compatibility queries don't need full plan generation
+    if is_pinout_compatibility_request(cleaned):
+        pinout_text = render_pinout_compatibility(cleaned)
+        return (
+            f"# GPIO Pinout Compatibility & Conflict Analysis\n\n"
+            f"**Platform detected from your query.**\n\n"
+            f"---\n\n"
+            f"{pinout_text}\n\n"
+            f"---\n"
+            f"💡 **Next Step:** Wire one module at a time, test it independently, then add the next. "
+            f"Type `completed: [subsystem] bench test passed` to log progress."
+        )
+
     # 4. Parse request and plan
     request = request_from_text(cleaned)
     plan = create_plan(request, research_service=research_service, enable_live_research=enable_live_research)
@@ -758,8 +773,8 @@ def run_forge(
             f"{bom_text}"
         )
 
-    # Case C: Failure Simulation only
-    if has_failure and not has_wiring:
+    # Case C: Failure Simulation only (skip if timeline also requested — Case D handles combo)
+    if has_failure and not has_wiring and not has_timeline:
         failure_text = simulate_failure(cleaned, request.platform)
         return (
             f"# ⚡ Hardware Failure Simulation\n\n"
@@ -768,10 +783,23 @@ def run_forge(
             f"{failure_text}"
         )
 
-    # Case D: Team Timeline & Task Allocation
+    # Case D: Team Timeline & Task Allocation (+ optional failure simulation)
     if has_timeline:
         timeline_text = render_detailed_timeline_and_tasks(request, plan)
         bom_text = render_detailed_bom(plan, request)
+        if has_failure:
+            failure_text = simulate_failure(cleaned, request.platform)
+            return (
+                f"# 👥 Hackathon Execution Plan, Timeline & Failure Analysis\n\n"
+                f"**Target:** {request.idea}\n\n"
+                f"---\n\n"
+                f"{timeline_text}\n\n"
+                f"---\n\n"
+                f"## ⚡ Failure Simulation\n\n"
+                f"{failure_text}\n\n"
+                f"---\n\n"
+                f"{bom_text}"
+            )
         return (
             f"# 👥 Hackathon Execution Plan & Timeline\n\n"
             f"**Target:** {request.idea}\n\n"
