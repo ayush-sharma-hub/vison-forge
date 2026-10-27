@@ -120,10 +120,13 @@ async def handle_chat(ctx: Context, sender: str, message: ChatMessage) -> None:
             loop = asyncio.get_event_loop()
             reply = await loop.run_in_executor(_executor, _run_forge_sync, user_text, sender)
 
+        # Pause slightly to prevent FlockX / ASI:One webhook 429 rate limit
+        await asyncio.sleep(0.8)
         await ctx.send(sender, _make_response(reply))
     except Exception as exc:
         ctx.logger.error(f"Error handling chat from {sender}: {exc}")
         try:
+            await asyncio.sleep(0.5)
             await ctx.send(sender, _make_response(f"Vison Forge encountered an error: {exc}. Please try again."))
         except Exception:
             pass

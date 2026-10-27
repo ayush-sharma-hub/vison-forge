@@ -2,48 +2,48 @@
 
 | Component | Qty | Purpose | Voltage | Verified seller | Displayed price | Stock | Direct purchase link | Checked |
 |---|---:|---|---|---|---:|---|---|---|
-| Arduino Uno-compatible board | 1 | Main controller | 5V logic | Quartz Components | ₹359.00 | In stock | [Buy Option](https://quartzcomponents.com/products/uno-r3-atmega328p-compatible-development-board-dip-version-without-cable) | 2026-10-24 10:36 UTC |
-| Breadboard | 1 | Safe temporary prototyping | Confirm | Quartz Components | ₹68.00 | In stock | [Buy Option](https://quartzcomponents.com/products/colored-breadboard-mb-102-830-point) | 2026-10-24 10:36 UTC |
-| Jumper wires | 1 | Low-voltage prototype connections | Confirm | Quartz Components | ₹52.00 | In stock | [Buy Option](https://quartzcomponents.com/products/jumper-wire-combo-m-to-m-m-to-f-f-to-f) | 2026-10-24 10:36 UTC |
-| USB-B data cable | 1 | Programming and initial power | Confirm | Quartz Components | ₹28.00 | In stock | [Buy Option](https://quartzcomponents.com/products/raspberry-pi-cable-for-charging) | 2026-10-24 10:36 UTC |
-| Sensor matched to the project goal | 1 | Collect the main project input | Confirm from datasheet | Quartz Components | ₹359.00 | In stock | [Buy Option](https://quartzcomponents.com/products/uno-r3-atmega328p-compatible-development-board-dip-version-without-cable) | 2026-10-24 10:36 UTC |
+| ESP32 DevKit | 1 | Main controller with Wi-Fi/Bluetooth capabilities | 3.3V | Quartz Components | ₹375.00 | In stock | [Buy Option](https://quartzcomponents.com/products/esp32-30-pin-development-board-with-wi-fi-and-bluetooth) | 2026-10-27 20:18 UTC |
+| SG90 Micro Servo | 1 | Mechanical actuator to dispense food via rotating arm | 5V | Quartz Components | ₹68.00 | In stock | [Buy Option](https://quartzcomponents.com/products/sg90-micro-servo-motor) | 2026-10-27 20:18 UTC |
+| HC-SR04 Ultrasonic Sensor | 1 | Detect pet presence or bin level (optional feature) | 5V | Quartz Components | ₹58.00 | In stock | [Buy Option](https://quartzcomponents.com/products/ultrasonic-sensor-module-hc-sr04) | 2026-10-27 20:18 UTC |
+| 5V 2A Power Supply | 1 | Provide stable power for servo and logic levels | 5V | Quartz Components | ₹135.00 | In stock | [Buy Option](https://quartzcomponents.com/products/5v-2a-power-adapter-with-micro-usb-cable) | 2026-10-27 20:18 UTC |
+| Breadboard & Jumper Wires | 1 | Prototyping connections | N/A | Quartz Components | ₹68.00 | In stock | [Buy Option](https://quartzcomponents.com/products/colored-breadboard-mb-102-830-point) | 2026-10-27 20:18 UTC |
 
 ## Estimated Project Total
 
-- **Estimated Total:** ₹866.00 INR
+- **Estimated Total:** ₹704.00 INR
 - **Completeness:** Complete (all required items verified)
 
 ## Build Options (Tiers)
 
-### Basic Build — ₹866.00 (All items verified)
+### Basic Build — ₹704.00 (All items verified)
 Budget-conscious build using verified entry-level options.
 
-- **Arduino Uno R3**: ₹359.00 — [Uno R3 ATmega328P Compatible Development Board](https://quartzcomponents.com/products/uno-r3-atmega328p-compatible-development-board-dip-version-without-cable) (Quartz Components)
+- **ESP32 DevKit**: ₹375.00 — [ESP32 30 Pin Development Board with Wi-Fi and Bluetooth](https://quartzcomponents.com/products/esp32-30-pin-development-board-with-wi-fi-and-bluetooth) (Quartz Components)
+- **SG90 Micro Servo**: ₹68.00 — [SG90 Micro Servo Motor 9g](https://quartzcomponents.com/products/sg90-micro-servo-motor) (Quartz Components)
+- **HC-SR04 Ultrasonic Sensor**: ₹58.00 — [HC-SR04 Ultrasonic Sensor Module](https://quartzcomponents.com/products/ultrasonic-sensor-module-hc-sr04) (Quartz Components)
+- **5V 2A Power Supply**: ₹135.00 — [5V 2A Power Adapter with Micro USB Cable](https://quartzcomponents.com/products/5v-2a-power-adapter-with-micro-usb-cable) (Quartz Components)
 - **breadboard**: ₹68.00 — [Colored Breadboard MB-102 830 Point](https://quartzcomponents.com/products/colored-breadboard-mb-102-830-point) (Quartz Components)
-- **jumper wires**: ₹52.00 — [Jumper Wire Combo (M to M, M to F, F to F)](https://quartzcomponents.com/products/jumper-wire-combo-m-to-m-m-to-f-f-to-f) (Quartz Components)
-- **USB Cable Type A to B**: ₹28.00 — [High Quality Micro USB / USB Data Cable](https://quartzcomponents.com/products/raspberry-pi-cable-for-charging) (Quartz Components)
-- **9 in 1 arduino sensor kit**: ₹359.00 — [Uno R3 ATmega328P Compatible Development Board](https://quartzcomponents.com/products/uno-r3-atmega328p-compatible-development-board-dip-version-without-cable) (Quartz Components)
 
-### Recommended Build — ₹3865.00 (All items verified)
+### Recommended Build — ₹833.00 (All items verified)
 Standard build with proven reliability, upgraded modules, and balanced cost.
 
-- **Arduino Uno R3**: ₹1850.00 — [Arduino Uno R3 Original Board](https://quartzcomponents.com/products/original-arduino-uno-r3) (Quartz Components)
+- **ESP32 DevKit**: ₹420.00 — [ESP32 Type-C Development Board](https://quartzcomponents.com/products/esp32-type-c-development-board) (Quartz Components)
+- **SG90 Micro Servo**: ₹135.00 — [MG90S Metal Gear Micro Servo 9g](https://quartzcomponents.com/products/mg90s-metal-gear-micro-servo) (Quartz Components)
+- **HC-SR04 Ultrasonic Sensor**: ₹58.00 — [HC-SR04 Ultrasonic Sensor Module](https://quartzcomponents.com/products/ultrasonic-sensor-module-hc-sr04) (Quartz Components)
+- **5V 2A Power Supply**: ₹135.00 — [5V 2A Power Adapter with Micro USB Cable](https://quartzcomponents.com/products/5v-2a-power-adapter-with-micro-usb-cable) (Quartz Components)
 - **breadboard**: ₹85.00 — [Transparent Breadboard MB-102 830 Point](https://quartzcomponents.com/products/transparent-breadboard-830-point) (Quartz Components)
-- **jumper wires**: ₹52.00 — [Jumper Wire Combo (M to M, M to F, F to F)](https://quartzcomponents.com/products/jumper-wire-combo-m-to-m-m-to-f-f-to-f) (Quartz Components)
-- **USB Cable Type A to B**: ₹28.00 — [High Quality Micro USB / USB Data Cable](https://quartzcomponents.com/products/raspberry-pi-cable-for-charging) (Quartz Components)
-- **9 in 1 arduino sensor kit**: ₹1850.00 — [Arduino Uno R3 Original Board](https://quartzcomponents.com/products/original-arduino-uno-r3) (Quartz Components)
 
-### Premium Build — ₹5217.75 (All items verified)
+### Premium Build — ₹953.00 (All items verified)
 Enhanced build featuring higher-spec, metal-gear, or branded modules with surge protection.
 
-- **Arduino Uno R3**: ₹1850.00 — [Arduino Uno R3 Original Board](https://quartzcomponents.com/products/original-arduino-uno-r3) (Quartz Components)
+- **ESP32 DevKit**: ₹540.00 — [ESP32-WROVER-E Development Board with 8MB PSRAM](https://quartzcomponents.com/products/esp32-wrover-development-board) (Quartz Components)
+- **SG90 Micro Servo**: ₹135.00 — [MG90S Metal Gear Micro Servo 9g](https://quartzcomponents.com/products/mg90s-metal-gear-micro-servo) (Quartz Components)
+- **HC-SR04 Ultrasonic Sensor**: ₹58.00 — [HC-SR04 Ultrasonic Sensor Module](https://quartzcomponents.com/products/ultrasonic-sensor-module-hc-sr04) (Quartz Components)
+- **5V 2A Power Supply**: ₹135.00 — [5V 2A Power Adapter with Micro USB Cable](https://quartzcomponents.com/products/5v-2a-power-adapter-with-micro-usb-cable) (Quartz Components)
 - **breadboard**: ₹85.00 — [Transparent Breadboard MB-102 830 Point](https://quartzcomponents.com/products/transparent-breadboard-830-point) (Quartz Components)
-- **jumper wires**: ₹52.00 — [Jumper Wire Combo (M to M, M to F, F to F)](https://quartzcomponents.com/products/jumper-wire-combo-m-to-m-m-to-f-f-to-f) (Quartz Components)
-- **USB Cable Type A to B**: ₹28.00 — [High Quality Micro USB / USB Data Cable](https://quartzcomponents.com/products/raspberry-pi-cable-for-charging) (Quartz Components)
-- **9 in 1 arduino sensor kit**: ₹1850.00 — [Arduino Uno R3 Original Board](https://quartzcomponents.com/products/original-arduino-uno-r3) (Quartz Components)
 ## Purchase research
 
-Live retailer research verified via Quartz Components (5/5 components verified; all components verified). Estimated project total: ₹866.00. See BOM for direct purchase links and price check timestamps.
+Verified 5 components via Quartz Components live retailer research.
 
 ## Important Purchasing Policy
 

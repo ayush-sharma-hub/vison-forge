@@ -1,8 +1,8 @@
-# I want to build a motorized DIY Iron Man helmet with dual micro servos for opening the faceplate and LED eye glow using an Arduino Nano, under ₹2500, in 10 days, for a beginner.
+# I want to build an automated pet feeder with a servo motor and ultrasonic distance sensor on ESP32
 
 ## Vison Forge verdict
 
-**Ready:** A scoped arduino iot project for a beginner builder.
+**Ready:** A custom Esp32 build: Highly feasible and safe DIY project suitable for hobbyists.
 
 ## Difficulty
 
@@ -10,16 +10,16 @@ Low to medium — suitable for a guided beginner build
 
 ## Estimated Project Total
 
-- **Estimated Total:** ₹866.00 INR
+- **Estimated Total:** ₹704.00 INR
 - **Completeness:** Complete (all required items verified)
 
 ## Safety
 
-- Use only low-voltage hobby electronics and follow every component datasheet.
+- Servo motor stall current causing voltage drop or overheating if powered directly from ESP32 GPIO pins without external power supply.
 
 ## Documentation
 
-- [Arduino Uno-compatible board documentation](https://docs.arduino.cc/hardware/uno-rev3/)
+- No documentation link available yet.
 
 ## Important Purchasing Policy
 

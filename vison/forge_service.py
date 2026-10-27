@@ -6,9 +6,15 @@ from pathlib import Path
 import json
 import re
 
+from .ai_advisor import FeasibilityReport, analyze_hardware_query
 from .forge import (
+    Component,
     ForgePlan,
     ForgeRequest,
+    _difficulty,
+    _project_kind,
+    _timeline,
+    _team_tasks,
     create_plan,
     render_detailed_bom,
     render_detailed_timeline_and_tasks,
@@ -482,15 +488,68 @@ def format_master_plan(request: ForgeRequest, plan: ForgePlan, note: str = "") -
     )
 
 
+def render_infeasible_report(query: str, rep: FeasibilityReport | None = None, fallback_plan: ForgePlan | None = None) -> str:
+    """Generate a rigorous engineering autopsy explaining WHY a project cannot be built safely."""
+    if not rep or not rep.why_cannot_build:
+        safety_lines = "\n".join(f"- ⚠️ {note}" for note in (fallback_plan.safety_notes if fallback_plan else []))
+        summary = fallback_plan.summary if fallback_plan else "This project involves high hazards outside safe low-voltage hobby electronics."
+        return (
+            f"# ⚠️ Engineering Feasibility Review: Project Cannot Be Built Safely\n\n"
+            f"**Project Target:** {query}\n\n"
+            f"**Feasibility Verdict:** 🔴 Outside Safe DIY Prototyping Scope\n\n"
+            f"{summary}\n\n"
+            f"---\n\n"
+            f"### ⚡ Critical Physical & Electrical Hazards:\n"
+            f"{safety_lines or '- High risk of thermal runaway, short circuits, or electrical damage.'}\n\n"
+            f"---\n\n"
+            f"### 💡 Safe Recommended Engineering Pivot:\n"
+            f"Consider scaling down to an isolated, low-voltage (5V/3.3V) ground-based prototype or desktop simulation."
+        )
+
+    reasons = "\n".join(
+        f"- **{r.split(':', 1)[0]}:** {r.split(':', 1)[1].strip()}" if ":" in r else f"- {r}"
+        for r in rep.why_cannot_build
+    )
+    hazards = "\n".join(f"- ⚠️ {h}" for h in rep.hazards)
+
+    return (
+        f"# ⚠️ Engineering Feasibility Review: Project Cannot Be Built Safely\n\n"
+        f"**Project Target:** {query}\n\n"
+        f"**Feasibility Verdict:** 🔴 {rep.verdict}\n\n"
+        f"---\n\n"
+        f"### 🔬 Why This Cannot Work as Stated (Engineering Bottlenecks):\n"
+        f"{reasons}\n\n"
+        f"---\n\n"
+        f"### ⚡ Critical Physical & Electrical Hazards:\n"
+        f"{hazards}\n\n"
+        f"---\n\n"
+        f"### 💡 Safe Recommended Engineering Pivot:\n"
+        f"**{rep.safe_alternative}**\n\n"
+        f"*Would you like Vison Forge to generate a complete verified Bill of Materials, wiring schematic, and 14-day build timeline for this safe alternative instead? Simply reply with 'yes' or describe your modified idea.*"
+    )
+
+
 def run_forge(
     text: str,
     enable_live_research: bool = True,
     research_service: ComponentResearchService | None = None,
     session_id: str = "default",
 ) -> str:
-    cleaned = re.sub(r"@agent1[a-z0-9]+\s*", "", text, flags=re.IGNORECASE).strip()
+    cleaned = re.sub(r"@[\w-]+\s*", "", text, flags=re.IGNORECASE).strip()
     if not cleaned:
         cleaned = text.strip()
+
+    # Friendly greeting detector
+    if cleaned.lower() in ("hi", "hello", "hey", "hola", "help", "who are you", "start", "/start"):
+        return (
+            "👋 Welcome to **Vison Forge** — your hardware project planning agent!\n\n"
+            "Describe an Arduino, ESP32, Raspberry Pi, or robotics project.\n\n"
+            "Include your budget, deadline, and experience level for best results.\n\n"
+            "**Example prompts to try:**\n"
+            "- *I want an ESP32 plant watering system for two plants, under ₹2500, in 7 days, for a beginner team of 2.*\n"
+            "- *Give me a text wiring blueprint for an obstacle-avoiding robot using an Arduino Nano, an L298N motor driver, and two IR sensors, then run a failure simulation showing what happens if the motor driver draws more current.*\n"
+            "- *Create a structured Bill of Materials with Basic, Recommended, and Premium tiers for a DIY smart door lock using an ESP32, an RFID-RC522 reader, and a 12V solenoid.*"
+        )
 
     # Wrap live research in a try/except with short timeout to prevent Agentverse crashes
     safe_research = True
@@ -558,13 +617,87 @@ def run_forge(
     # 4. Parse request and plan
     request = request_from_text(cleaned)
     plan = create_plan(request, research_service=research_service, enable_live_research=enable_live_research)
+
+    # Check for hard safety blocks or unbuildable projects
+    if plan.verdict != "Ready":
+        ai_report = analyze_hardware_query(cleaned)
+        return render_infeasible_report(cleaned, ai_report, plan)
+
+    # For open-ended or arbitrary IoT queries outside fixed templates, check AI advisor
+    if _project_kind(cleaned) == "iot":
+        ai_report = analyze_hardware_query(cleaned)
+        if ai_report:
+            if not ai_report.is_buildable:
+                return render_infeasible_report(cleaned, ai_report, plan)
+            elif ai_report.components:
+                # Augment plan with dynamic components and research
+                service = research_service or ComponentResearchService()
+                dyn_components = []
+                comp_data = []
+                for c_dict in ai_report.components:
+                    c_name = str(c_dict.get("name", "Module"))
+                    c_qty = int(c_dict.get("quantity", 1))
+                    c_purpose = str(c_dict.get("purpose", "Main component"))
+                    c_volt = str(c_dict.get("voltage", "5V / 3.3V"))
+
+                    options = tuple(service.research_component(c_name))
+                    selected = options[0] if options else None
+                    status = f"₹{selected.price:.2f} at {selected.seller}" if selected else "Price research available"
+                    dyn_components.append(
+                        Component(
+                            name=c_name,
+                            quantity=c_qty,
+                            purpose=c_purpose,
+                            voltage=c_volt,
+                            purchase_status=status,
+                            purchase_options=options,
+                            selected_option=selected,
+                        )
+                    )
+                    comp_data.append((c_name, c_qty, list(options)))
+
+                tiers = tuple(service.build_tiers(comp_data, currency=request.currency))
+                selections = [(c.quantity, c.selected_option, c.name) for c in dyn_components]
+                calc_total, calc_curr, is_complete, unpriced_list = service.calculate_total(selections, currency=request.currency)
+
+                plan = ForgePlan(
+                    verdict="Ready",
+                    summary=f"A custom {request.platform.title()} build: {ai_report.verdict}",
+                    safety_notes=tuple(ai_report.hazards) if ai_report.hazards else plan.safety_notes,
+                    difficulty=plan.difficulty,
+                    estimated_hours=plan.estimated_hours,
+                    components=tuple(dyn_components),
+                    compatibility_notes=(
+                        "Verify common ground across all logic and high-current power rails.",
+                        "Confirm sensor and actuator logic levels before powering.",
+                    ),
+                    wiring=tuple(ai_report.wiring_blueprint) if ai_report.wiring_blueprint else plan.wiring,
+                    build_steps=plan.build_steps,
+                    tests=(
+                        "Subsystem test: verify microcontroller logic on USB power before connecting actuators.",
+                        "Power rail test: verify external voltage rail under load before connecting signal wires.",
+                        "Emergency stop: confirm software failsafe kills motor/actuator power if signal is lost.",
+                    ),
+                    risks=(
+                        ai_report.failure_symptom + " — " + ai_report.failure_root_cause,
+                        "Current mismatch between controller GPIO pins and external actuators.",
+                    ),
+                    timeline=plan.timeline,
+                    team_tasks=plan.team_tasks,
+                    submission_checklist=plan.submission_checklist,
+                    research_status=f"Verified {len(dyn_components)} components via Quartz Components live retailer research.",
+                    tiers=tiers,
+                    estimated_total=calc_total,
+                    total_currency=calc_curr,
+                    total_is_complete=is_complete,
+                    unpriced_components=tuple(unpriced_list),
+                    disclaimer=plan.disclaimer,
+                )
+
     if plan.verdict == "Ready":
         _SESSION_CACHE[session_id] = (request, plan)
         if session_id != "default":
             _SESSION_CACHE["default"] = (request, plan)
-
-    if plan.verdict != "Ready":
-        return f"**{plan.verdict}**\n\n{plan.summary}\n\n" + "\n".join(f"- {note}" for note in plan.safety_notes)
 
     # 5. Intent-specific targeting
     has_wiring = is_wiring_request(cleaned)
