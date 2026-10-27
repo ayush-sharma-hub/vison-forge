@@ -607,6 +607,45 @@ def render_detailed_wiring(request: ForgeRequest, plan: ForgePlan) -> str:
             "2. **3.3V Pure Logic:** Raspberry Pi GPIO pins have NO 5V TOLERANCE. Never power the LM393 rain sensor from 5V; power it exclusively from Pin 17 (3.3V)."
         )
 
+    elif kind == "wearable-animatronic" or any(k in lower_idea for k in ("iron man", "suit", "animatronic", "wearable", "exoskeleton", "falcon", "captain america", "wings", "helmet")):
+        mcu_name = "ESP32 DevKit V1" if platform == "esp32" else "Arduino Uno R3"
+        sda_pin = "GPIO 21" if platform == "esp32" else "A4"
+        scl_pin = "GPIO 22" if platform == "esp32" else "A5"
+        led_pin = "GPIO 18" if platform == "esp32" else "D6"
+        df_rx = "GPIO 16" if platform == "esp32" else "D10"
+        df_tx = "GPIO 17" if platform == "esp32" else "D11"
+
+        table = [
+            "| Module / Subsystem | Module Pin | Controller / Supply Rail | Wire Type | Voltage & Signal Notes |",
+            "|---|---|---|---|---|",
+            f"| PCA9685 16-Ch PWM Driver | VCC, GND | {mcu_name} 5V rail, GND | Jumper (F-to-M) | Logic reference power |",
+            f"| PCA9685 16-Ch PWM Driver | SDA, SCL | {mcu_name} {sda_pin}, {scl_pin} | Jumper (F-to-M) | I2C Bus control signal |",
+            "| PCA9685 16-Ch PWM Driver | V+ (Servo Power) | LM2596 Buck Converter 5V/6V OUT (+) | 18 AWG Wire | High-current isolated servo power rail |",
+            "| MG996R Servos (Visor / Wings) | PWM Signals | PCA9685 Channels 0 to 3 | 3-Pin Ribbon | Jitter-free multi-servo PWM control |",
+            "| MG996R Servos (Visor / Wings) | Power Leads (+, -) | PCA9685 V+ & GND Rows | 3-Pin Ribbon | Powered directly from buck converter rail |",
+            f"| WS2812B NeoPixel Ring/Strip | DIN (Data In) | {mcu_name} {led_pin} (via 470 Ohm) | Jumper (F-to-M) | High-speed addressable color signal |",
+            "| WS2812B NeoPixel Ring/Strip | 5V (+), GND (-) | LM2596 5V OUT, Common GND | Stranded Wire | Separate high-current LED power tap |",
+            f"| DFPlayer Mini Audio Module | VCC, GND | {mcu_name} 5V rail, GND | Jumper (F-to-M) | Audio module power |",
+            f"| DFPlayer Mini Audio Module | RX (Audio Commands) | {mcu_name} {df_rx} (via 1k Ohm) | Jumper (F-to-M) | 1k Ohm resistor protects DFPlayer 3.3V UART |",
+            f"| DFPlayer Mini Audio Module | TX (Status Return) | {mcu_name} {df_tx} | Jumper (F-to-M) | Serial status telemetry |",
+            "| 8 Ohm 3W Speaker | SPK_1, SPK_2 | DFPlayer SPK Outputs | 22 AWG Wire | Differential DAC audio output |",
+            f"| MPU-6050 Motion Sensor | SDA, SCL | {mcu_name} {sda_pin}, {scl_pin} | Jumper (F-to-M) | Shared I2C bus (Address 0x68) |",
+            "| LM2596 Buck Converter | IN (+), IN (-) | External 7.4V-12V Battery Pack | 18 AWG Wire | Dedicated high-current battery power source |",
+            f"| Common Star Ground Bus | Ground Rail | Battery (-) **AND** {mcu_name} GND | 18 AWG Wire | **MANDATORY COMMON GROUND** across all subsystems |",
+        ]
+
+        return (
+            f"## 🔌 Text Wiring Blueprint: {mcu_name} Wearable Animatronics & Exoskeleton System\n\n"
+            f"**Logic Voltage:** {'3.3V' if platform == 'esp32' else '5V'} | **Architecture:** Dual-Rail Isolated Power Topology with PCA9685 I2C Servo Buffer\n\n"
+            + "\n".join(table)
+            + "\n\n"
+            "### ⚠️ Critical Wearable Hardware Wiring Rules:\n"
+            "1. **Never Power Servos from MCU Pin:** Multiple MG996R servos draw 3A to 6A peak stall current. Connecting them to microcontroller 5V pin will permanently incinerate onboard linear voltage regulators and trigger continuous brownouts.\n"
+            "2. **PCA9685 External V+ Input:** Feed regulated 5V to 6V from the LM2596 buck converter directly into the screw terminals of the PCA9685 board.\n"
+            "3. **UART Resistor on DFPlayer:** The DFPlayer RX pin is sensitive; always place a 1k Ohm series resistor between controller TX and DFPlayer RX to suppress voltage spikes.\n"
+            "4. **Decoupling Buffer:** Solder a 1000µF 16V electrolytic capacitor across the LM2596 output terminals to buffer inrush surges when motorized visor or wings deploy simultaneously."
+        )
+
     else:
         table = [
             "| Module / Subsystem | Module Pin | Controller Pin | Wire Type | Voltage Notes |",
@@ -687,6 +726,26 @@ def simulate_failure(query: str, platform: str = "") -> str:
             "1. **Resistive Voltage Divider:** For unidirectional signals (e.g., Echo pin to ESP32), insert a 1k Ohm resistor between sensor out and GPIO, and a 2k Ohm resistor between GPIO and GND: $V_{out} = 5V \\times \\frac{2k}{1k + 2k} = 3.33V$.\n"
             "2. **Bi-Directional Logic Level Shifter:** For I2C/SPI bidirectional communication, use a dedicated BSS138 N-channel MOSFET level shifter module.\n"
             "3. **Power Sensor from 3.3V Rail:** Whenever possible, verify if the sensor supports 3.3V supply (e.g. RCWL-1601 or 3.3V-compatible HC-SR04P)."
+        )
+
+    elif any(k in lower for k in ("servo", "animatronic", "wearable", "wings", "suit", "pca9685", "helmet", "falcon", "captain america", "iron man")):
+        return (
+            "## ⚡ Engineering Failure Simulation: Multi-Servo Inrush Stall Current & Logic Brownout Reset\n\n"
+            "### 1. Failure Scenario & Symptoms\n"
+            "- **Observed Symptoms:** When wings deploy or helmet visor opens, the microcontroller resets in an infinite boot loop, WS2812B LEDs glitch or freeze on random colors, and servos shudder violently without completing their travel stroke.\n"
+            "- **Fault Trigger:** Multiple high-torque servos (MG996R) actuate simultaneously from rest, drawing massive surge stall currents (up to 2.5A per motor).\n\n"
+            "### 2. Physical Root Cause Analysis\n"
+            "- **Transient Voltage Sag:** The initial mechanical inertia requires instantaneous rotor torque. Simultaneous startup of multiple servos pulls 4A to 8A for 50ms–150ms. If powered from a high internal-resistance battery or shared with microcontroller VCC, the 5V power bus collapses below the MCU's internal Brown-Out Detection (BOD) threshold (4.0V on ATmega328P, 2.8V on ESP32).\n"
+            "- **Supply Rail Noise Injection:** Fast inductive switching of servo internal H-bridge MOSFETs injects high-frequency EMI noise (>100MHz transients) back through the ground return path, corrupting I2C clock (SCL) lines to the PCA9685.\n\n"
+            "### 3. Potential Consequences\n"
+            "- Total crash of central controller during wing expansion or flight posture.\n"
+            "- Stripped nylon or metal servo gears due to un-damped oscillations and hunting.\n"
+            "- Thermal overload of battery wiring harness and connector pins.\n\n"
+            "### 4. Hardware Safeguards & Mitigation (The Fix)\n"
+            "1. **Dedicated High-Current Buck Rail:** Step battery voltage down using an LM2596 or XL4015 buck converter rated for 5A+ continuous, feeding exclusively the PCA9685 V+ rail.\n"
+            "2. **Bulk Low-ESR Decoupling Capacitor:** Place a 1000µF to 2200µF 16V electrolytic capacitor directly across the PCA9685 servo power terminal block to act as a local energy reservoir during inrush.\n"
+            "3. **Firmware Staggered Servo Activation:** In software, never command all servos simultaneously at t=0. Introduce a 100ms phase offset between wing-left and wing-right actuation: actuate_left_wing(); delay(100); actuate_right_wing();.\n"
+            "4. **Common Star-Ground:** Tie the logic ground and high-current power ground together at a single physical terminal point."
         )
 
     else:
