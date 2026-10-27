@@ -670,7 +670,27 @@ def simulate_failure(query: str, platform: str = "") -> str:
     """Run an engineering failure simulation analyzing physical hardware fault modes."""
     lower = query.lower()
 
-    if any(k in lower for k in ("motor", "driver", "current", "l298n", "draws more", "stall", "brownout")):
+    if any(k in lower for k in ("servo", "animatronic", "wearable", "wings", "suit", "pca9685", "helmet", "falcon", "captain america", "iron man", "exoskeleton")):
+        return (
+            "## ⚡ Engineering Failure Simulation: Multi-Servo Inrush Stall Current & Logic Brownout Reset\n\n"
+            "### 1. Failure Scenario & Symptoms\n"
+            "- **Observed Symptoms:** When wings deploy or helmet visor opens, the microcontroller resets in an infinite boot loop, WS2812B LEDs glitch or freeze on random colors, and servos shudder violently without completing their travel stroke.\n"
+            "- **Fault Trigger:** Multiple high-torque servos (MG996R) actuate simultaneously from rest, drawing massive surge stall currents (up to 2.5A per motor).\n\n"
+            "### 2. Physical Root Cause Analysis\n"
+            "- **Transient Voltage Sag:** The initial mechanical inertia requires instantaneous rotor torque. Simultaneous startup of multiple servos pulls 4A to 8A for 50ms–150ms. If powered from a high internal-resistance battery or shared with microcontroller VCC, the 5V power bus collapses below the MCU's internal Brown-Out Detection (BOD) threshold (4.0V on ATmega328P, 2.8V on ESP32).\n"
+            "- **Supply Rail Noise Injection:** Fast inductive switching of servo internal H-bridge MOSFETs injects high-frequency EMI noise (>100MHz transients) back through the ground return path, corrupting I2C clock (SCL) lines to the PCA9685.\n\n"
+            "### 3. Potential Consequences\n"
+            "- Total crash of central controller during wing expansion or flight posture.\n"
+            "- Stripped nylon or metal servo gears due to un-damped oscillations and hunting.\n"
+            "- Thermal overload of battery wiring harness and connector pins.\n\n"
+            "### 4. Hardware Safeguards & Mitigation (The Fix)\n"
+            "1. **Dedicated High-Current Buck Rail:** Step battery voltage down using an LM2596 or XL4015 buck converter rated for 5A+ continuous, feeding exclusively the PCA9685 V+ rail.\n"
+            "2. **Bulk Low-ESR Decoupling Capacitor:** Place a 1000µF to 2200µF 16V electrolytic capacitor directly across the PCA9685 servo power terminal block to act as a local energy reservoir during inrush.\n"
+            "3. **Firmware Staggered Servo Activation:** In software, never command all servos simultaneously at t=0. Introduce a 100ms phase offset between wing-left and wing-right actuation: actuate_left_wing(); delay(100); actuate_right_wing();.\n"
+            "4. **Common Star-Ground:** Tie the logic ground and high-current power ground together at a single physical terminal point."
+        )
+
+    elif any(k in lower for k in ("motor", "driver", "current", "l298n", "draws more", "stall", "brownout", "robot", "rover")):
         return (
             "## ⚡ Engineering Failure Simulation: Motor Driver Overcurrent & Controller Brownout\n\n"
             "### 1. Failure Scenario & Symptoms\n"
@@ -728,26 +748,6 @@ def simulate_failure(query: str, platform: str = "") -> str:
             "3. **Power Sensor from 3.3V Rail:** Whenever possible, verify if the sensor supports 3.3V supply (e.g. RCWL-1601 or 3.3V-compatible HC-SR04P)."
         )
 
-    elif any(k in lower for k in ("servo", "animatronic", "wearable", "wings", "suit", "pca9685", "helmet", "falcon", "captain america", "iron man")):
-        return (
-            "## ⚡ Engineering Failure Simulation: Multi-Servo Inrush Stall Current & Logic Brownout Reset\n\n"
-            "### 1. Failure Scenario & Symptoms\n"
-            "- **Observed Symptoms:** When wings deploy or helmet visor opens, the microcontroller resets in an infinite boot loop, WS2812B LEDs glitch or freeze on random colors, and servos shudder violently without completing their travel stroke.\n"
-            "- **Fault Trigger:** Multiple high-torque servos (MG996R) actuate simultaneously from rest, drawing massive surge stall currents (up to 2.5A per motor).\n\n"
-            "### 2. Physical Root Cause Analysis\n"
-            "- **Transient Voltage Sag:** The initial mechanical inertia requires instantaneous rotor torque. Simultaneous startup of multiple servos pulls 4A to 8A for 50ms–150ms. If powered from a high internal-resistance battery or shared with microcontroller VCC, the 5V power bus collapses below the MCU's internal Brown-Out Detection (BOD) threshold (4.0V on ATmega328P, 2.8V on ESP32).\n"
-            "- **Supply Rail Noise Injection:** Fast inductive switching of servo internal H-bridge MOSFETs injects high-frequency EMI noise (>100MHz transients) back through the ground return path, corrupting I2C clock (SCL) lines to the PCA9685.\n\n"
-            "### 3. Potential Consequences\n"
-            "- Total crash of central controller during wing expansion or flight posture.\n"
-            "- Stripped nylon or metal servo gears due to un-damped oscillations and hunting.\n"
-            "- Thermal overload of battery wiring harness and connector pins.\n\n"
-            "### 4. Hardware Safeguards & Mitigation (The Fix)\n"
-            "1. **Dedicated High-Current Buck Rail:** Step battery voltage down using an LM2596 or XL4015 buck converter rated for 5A+ continuous, feeding exclusively the PCA9685 V+ rail.\n"
-            "2. **Bulk Low-ESR Decoupling Capacitor:** Place a 1000µF to 2200µF 16V electrolytic capacitor directly across the PCA9685 servo power terminal block to act as a local energy reservoir during inrush.\n"
-            "3. **Firmware Staggered Servo Activation:** In software, never command all servos simultaneously at t=0. Introduce a 100ms phase offset between wing-left and wing-right actuation: actuate_left_wing(); delay(100); actuate_right_wing();.\n"
-            "4. **Common Star-Ground:** Tie the logic ground and high-current power ground together at a single physical terminal point."
-        )
-
     else:
         return (
             "## ⚡ Engineering Failure Simulation: Generic Subsystem Fault & Circuit Protection\n\n"
@@ -773,7 +773,7 @@ def render_detailed_timeline_and_tasks(request: ForgeRequest, plan: ForgePlan) -
             "Member 1: Hardware & Power Lead",
             [
                 "Verify all received components against the verified BOM datasheet specifications.",
-                "Assemble the dual-rail power distribution board (battery pack, L298N motor driver/relay isolation).",
+                ("Assemble the dual-rail power distribution board (battery pack, LM2596 buck converter, PCA9685 servo rail)." if any(k in lower for k in ("servo", "animatronic", "wearable", "wings", "suit", "pca9685", "helmet", "falcon", "captain america", "iron man")) else "Assemble the dual-rail power distribution board (battery pack, L298N motor driver/relay isolation)."),
                 "Measure stall currents and confirm shared common ground wiring.",
                 "Perform cold continuity checks with a multimeter before applying first power.",
             ],
